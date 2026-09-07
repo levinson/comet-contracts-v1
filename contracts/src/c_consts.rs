@@ -6,6 +6,7 @@ pub const BONE: i128 = 10i128.pow(18);
 pub const MIN_CPOW_BASE: i128 = 1;
 pub const MAX_CPOW_BASE: i128 = (2 * BONE) - 1;
 pub const CPOW_PRECISION: i128 = 10i128.pow(8);
+pub(crate) const MAX_CPOW_ITERS: i128 = 50;
 
 /// constants
 pub const STROOP: i128 = 10i128.pow(7);

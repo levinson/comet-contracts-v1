@@ -5,11 +5,11 @@ use soroban_fixed_point_math::SorobanFixedPoint;
 use soroban_sdk::{assert_with_error, unwrap::UnwrapOptimized, Env, I256};
 
 use crate::{
-    c_consts::{self, CPOW_PRECISION, MAX_CPOW_BASE, MAX_CPOW_EXP, MIN_CPOW_BASE},
+    c_consts::{
+        self, CPOW_PRECISION, MAX_CPOW_BASE, MAX_CPOW_EXP, MAX_CPOW_ITERS, MIN_CPOW_BASE,
+    },
     c_pool::error::Error,
 };
-
-const MAX_CPOW_ITERS: i128 = 50;
 
 /// Perform a - b, or panic if a < b
 pub fn sub_no_negative(e: &Env, a: &I256, b: &I256) -> I256 {

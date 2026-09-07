@@ -279,9 +279,21 @@ first-order correction.
 
 ## Verification status
 
-The argument above is intended to be complete at the mathematical level and is
-tied to the fixed-point dependency's pinned semantics. The regression tests
-corroborate it at selected boundary and slow-convergence inputs. They do not
-replace a machine-checked proof: that would additionally require encoding this
-postcondition, the arithmetic model, and the lemmas above in a proof assistant
-or verification tool.
+The standalone Lean project in [`../verification`](../verification/README.md)
+machine-checks the reusable fixed-point rounding, recurrence-error budget,
+geometric-tail simplification, composition, configured-limit, and overflow
+lemmas above. Its configured values are generated from the production Rust
+constants, and CI rejects the generated Lean module if those values drift. Lean
+and mathlib are pinned, CI rebuilds the project, and the proof sources contain
+no `sorry`, `admit`, or custom axioms. The compiled namespace is also audited
+transitively, allowing only Lean's standard `propext`, `Classical.choice`, and
+`Quot.sound` foundations.
+
+This is the first verification layer, not yet a machine-checked proof of the
+deployed `c_pow` postcondition. The remaining trusted boundary is explicit:
+the generalized binomial series must be connected to real exponentiation, the
+lemmas must be instantiated for every branch of an executable `c_pow` model,
+and that model must be refined to the pinned Soroban `I256` implementation.
+Until those links are completed, the full enclosure claim remains the
+mathematical argument in this document, corroborated by the existing boundary
+and slow-convergence regression tests.
