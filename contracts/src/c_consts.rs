@@ -19,5 +19,11 @@ pub const MIN_BOUND_TOKENS: u32 = 2;
 pub const MAX_BOUND_TOKENS: u32 = 8;
 pub const MAX_TOTAL_WEIGHT: i128 = STROOP * 50;
 pub const MIN_WEIGHT: i128 = STROOP / 10; // 10%
+/// The largest reciprocal exponent reachable from the configured minimum weight.
+///
+/// This must round up to match the directed reciprocal constructed by `c_math`.
+pub const MAX_CPOW_EXP: i128 = (BONE * STROOP + MIN_WEIGHT - 1) / MIN_WEIGHT;
+const MAX_FORMALLY_PROVEN_CPOW_EXP: i128 = 10 * BONE;
+const _: () = assert!(MAX_CPOW_EXP <= MAX_FORMALLY_PROVEN_CPOW_EXP);
 pub const MAX_WEIGHT: i128 = MIN_WEIGHT * 9; // 90%
 pub const MIN_BALANCE: i128 = 100;
