@@ -204,3 +204,50 @@ fn test_c_pow_pool_operating_band_tracks_signal() {
         }
     }
 }
+
+#[test]
+fn test_c_pow_first_term_convergence_rounds_toward_bound() {
+    let env = Env::default();
+    let quarter = I256::from_i128(&env, BONE / 4);
+
+    // ceiling: series gives exactly BONE (term floors to 0) - one unit too low
+    let base = I256::from_i128(&env, BONE + 1);
+    assert_eq!(
+        c_pow(&env, &base, &quarter, true).to_i128().unwrap(),
+        BONE + 1
+    );
+    assert_eq!(c_pow(&env, &base, &quarter, false).to_i128().unwrap(), BONE);
+
+    // floor: series gives BONE - 1e8 exactly - one unit too high
+    let base = I256::from_i128(&env, BONE - 400_000_000);
+    // The exact floor is BONE - 100_000_001; the formal term and tail bounds
+    // conservatively place the returned lower bound one additional unit below it.
+    assert_eq!(
+        c_pow(&env, &base, &quarter, false).to_i128().unwrap(),
+        BONE - 100_000_002
+    );
+    // The exact ceiling is BONE - 1e8; the accumulated error budget returns a
+    // valid one-unit-loose upper bound.
+    assert_eq!(
+        c_pow(&env, &base, &quarter, true).to_i128().unwrap(),
+        BONE - 100_000_000 + 1
+    );
+
+    let base = I256::from_i128(&env, BONE + 2);
+    let exp = I256::from_i128(&env, 4 * BONE / 5);
+    assert_eq!(c_pow(&env, &base, &exp, false).to_i128().unwrap(), BONE);
+}
+
+#[test]
+fn test_c_pow_base_one_is_exact() {
+    let env = Env::default();
+    let base = I256::from_i128(&env, BONE);
+    let exp = I256::from_i128(&env, BONE * 5 / 4);
+
+    assert_eq!(c_pow(&env, &base, &exp, true).to_i128().unwrap(), BONE);
+    assert_eq!(c_pow(&env, &base, &exp, false).to_i128().unwrap(), BONE);
+
+    // and the neighbouring ratio BONE - 1 must stay at or below BONE when rounding up
+    let base = I256::from_i128(&env, BONE - 1);
+    assert_eq!(c_pow(&env, &base, &exp, true).to_i128().unwrap(), BONE - 1);
+}

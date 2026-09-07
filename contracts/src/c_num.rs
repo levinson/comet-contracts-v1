@@ -5,9 +5,7 @@ use soroban_fixed_point_math::SorobanFixedPoint;
 use soroban_sdk::{assert_with_error, unwrap::UnwrapOptimized, Env, I256};
 
 use crate::{
-    c_consts::{
-        self, CPOW_PRECISION, MAX_CPOW_BASE, MAX_CPOW_EXP, MAX_CPOW_ITERS, MIN_CPOW_BASE,
-    },
+    c_consts::{self, CPOW_PRECISION, MAX_CPOW_BASE, MAX_CPOW_EXP, MAX_CPOW_ITERS, MIN_CPOW_BASE},
     c_pool::error::Error,
 };
 
@@ -158,7 +156,6 @@ fn c_pow_approx(e: &Env, base: &I256, exp: &I256, precision: &I256, round_up: bo
             break;
         }
     }
-
     // If T_k is the exact scaled term and t_k is the computed term, then
     // |T_1 - t_1| < 1 and |T_k - t_k| < 3k - 2. Summing those per-term bounds
     // gives |S_k - s_k| < (3k^2 - k) / 2. Keep the error as a cheap scalar and
