@@ -19,12 +19,22 @@ fn render() -> String {
          def BONE : ℕ := {}\n\
          def STROOP : ℕ := {}\n\
          def MIN_WEIGHT : ℕ := {}\n\
+         def MAX_WEIGHT : ℕ := {}\n\
+         def MAX_IN_RATIO : ℕ := {}\n\
+         def MAX_OUT_RATIO : ℕ := {}\n\
+         def MAX_FEE : ℕ := {}\n\
+         def CPOW_PRECISION : ℕ := {}\n\
          def MAX_CPOW_ITERS : ℕ := {}\n\
          def MAX_CPOW_EXP : ℕ := {}\n\n\
          end CometCPow\n",
         as_nat("BONE", c_consts::BONE),
         as_nat("STROOP", c_consts::STROOP),
         as_nat("MIN_WEIGHT", c_consts::MIN_WEIGHT),
+        as_nat("MAX_WEIGHT", c_consts::MAX_WEIGHT),
+        as_nat("MAX_IN_RATIO", c_consts::MAX_IN_RATIO),
+        as_nat("MAX_OUT_RATIO", c_consts::MAX_OUT_RATIO),
+        as_nat("MAX_FEE", c_consts::MAX_FEE),
+        as_nat("CPOW_PRECISION", c_consts::CPOW_PRECISION),
         as_nat("MAX_CPOW_ITERS", c_consts::MAX_CPOW_ITERS),
         as_nat("MAX_CPOW_EXP", c_consts::MAX_CPOW_EXP),
     )

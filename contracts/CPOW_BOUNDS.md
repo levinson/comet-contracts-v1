@@ -199,7 +199,48 @@ ratio to the precision used here), so `r` is only slightly above `1/3`:
 
 Normalized weights, ratios of normalized weights, and reciprocal normalized
 weights place every pool exponent between 0.1 and 10. The wider `[0.5, 1.6]`
-base band leaves margin for the pool's fixed-point rounding.
+base band leaves margin for the pool's fixed-point rounding. Compile-time
+assertions tie this envelope to `MAX_IN_RATIO`, `MAX_OUT_RATIO`, `MAX_FEE`,
+`MIN_WEIGHT`, and `MAX_WEIGHT`. The Lean configuration module imports those
+values from Rust and checks the corresponding input, output, fee-adjusted
+withdrawal, and reciprocal-weight margins, so an unsafe configuration change
+cannot leave the convergence argument silently stale.
+
+### Iteration guarantee in the operating band
+
+The 50-iteration loop is a hard resource cap, not a convergence guarantee over
+the complete admitted base domain. It does, however, have a stronger stopping
+guarantee throughout the pool operating band. Let `q = abs(x)`. For fractional
+`a`, every exact binomial-term ratio is at most `q`, so
+
+```text
+abs(T_N) <= BONE * q^N.
+```
+
+Combining this with the recurrence error bound gives
+
+```text
+abs(t_N) < BONE * q^N + (3N - 2).
+```
+
+The operating band `0.5 <= base <= 1.6` implies `q <= 3/5`. At `N = 46`,
+
+```text
+BONE * (3/5)^46 + 136 < 62,367,519 < CPOW_PRECISION = 100,000,000.
+```
+
+Therefore the computed term satisfies the loop's stopping condition by
+iteration 46, before the iteration-50 cap, for every fractional exponent used
+by a successful pool operation. More generally, the iteration-50 inequality
+
+```text
+BONE * q^50 + 148 <= CPOW_PRECISION
+```
+
+holds for `q <= 0.6309573258...`; the simple rational band
+`0.37 <= base <= 1.63` is sufficient because it gives `q <= 0.63`. Inputs
+outside that sufficient band can reach the cap, but the remainder construction
+still encloses their omitted tail as described above.
 
 `test_c_pow_pool_operating_band_tracks_signal` samples the band boundaries, both
 sides of one, integer and fractional exponents, and the exponent endpoints. It

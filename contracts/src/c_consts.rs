@@ -27,4 +27,14 @@ pub const MAX_CPOW_EXP: i128 = (BONE * STROOP + MIN_WEIGHT - 1) / MIN_WEIGHT;
 const MAX_FORMALLY_PROVEN_CPOW_EXP: i128 = 10 * BONE;
 const _: () = assert!(MAX_CPOW_EXP <= MAX_FORMALLY_PROVEN_CPOW_EXP);
 pub const MAX_WEIGHT: i128 = MIN_WEIGHT * 9; // 90%
+
+// Keep every successful pool operation inside the documented c_pow operating
+// band [0.5, 1.6]. These guards tie the convergence proof to the pool
+// configuration without adding runtime checks.
+const _: () = assert!(5 * MAX_IN_RATIO <= 3 * STROOP);
+const _: () = assert!(8 * MAX_OUT_RATIO < 3 * STROOP);
+const _: () =
+    assert!(2 * MAX_OUT_RATIO * STROOP < STROOP * STROOP - (STROOP - MIN_WEIGHT) * MAX_FEE);
+const _: () = assert!(MAX_WEIGHT <= STROOP);
+
 pub const MIN_BALANCE: i128 = 100;

@@ -1,10 +1,11 @@
 # Machine-checked c_pow lemmas
 
-This Lean project machine-checks the fixed-point rounding, recurrence-error budget, geometric-tail simplification, composition, configured limits, and overflow lemmas used by `contracts/CPOW_BOUNDS.md`.
+This Lean project machine-checks the fixed-point rounding, recurrence-error budget, geometric-tail simplification, operating-band convergence, composition, configured limits, and overflow lemmas used by `contracts/CPOW_BOUNDS.md`.
 
 The checked-in Lean constants are generated from the production Rust constants,
-so the proof cannot silently keep using an old exponent or iteration limit. From
-the repository root, check that the generated module is current with:
+so the proof cannot silently keep using old pool ratios, fees, weights,
+precision, exponent, or iteration limits. From the repository root, check that
+the generated module is current with:
 
 ```sh
 rustc --edition=2021 verification/generate_constants.rs -o /tmp/generate-cpow-constants
@@ -46,8 +47,12 @@ size.
 | The raw recurrence inequality implies the `3k - 2` term budget through iteration 50 | `recurrence_error_budget` |
 | The summed scalar budgets equal `(3N² - N) / 2` | `sum_error_budget` |
 | `q / (1 - q) <= 1` when `q <= 1/2` | `geometric_tail_le_current` |
+| The fractional binomial recurrence implies the exact-term bound `abs(Tₙ) <= S qⁿ` | `fractional_binomial_factor_le_one`, `fractional_binomial_step_contracts`, `fractional_binomial_terms_geometric_bound` |
+| Production input/output ratios, fees, and weights retain the `[0.5, 1.6]` operating envelope | Generated `MAX_IN_RATIO`, `MAX_OUT_RATIO`, `MAX_FEE`, and `MAX_WEIGHT`; the `configured_*_margin` and `configured_*_base_*` lemmas in `PoolConfig.lean` |
+| Every base in `[0.5, 1.6]` satisfies `abs(x) <= 3/5` | `operating_base_implies_abs_x_le_three_fifths` |
+| The computed term reaches production precision by iteration 46 throughout `[0.5, 1.6]`, before the configured cap | `pool_operating_band_numeric_margin`, `pool_operating_band_iteration_within_cap`, `pool_operating_band_converges_by_iteration_46`, `pool_operating_base_converges_by_iteration_46` |
 | Non-negative directed bounds compose under multiplication | `mul_lower_bound`, `mul_upper_bound` |
-| The production Rust exponent, scale, and iteration constants discharge the recurrence premises | Generated `BONE`, `STROOP`, `MIN_WEIGHT`, `MAX_CPOW_ITERS`, and `MAX_CPOW_EXP`; `configured_exponent_limit`, `term_error_at_iteration_cap`, `real_scale_exceeds_term_error_cap`, `sum_error_at_iteration_cap` |
+| The production Rust precision, exponent, scale, pool-configuration, and iteration constants discharge the proof premises | Generated constants in `GeneratedConstants.lean`; `configured_exponent_limit`, `term_error_at_iteration_cap`, `real_scale_exceeds_term_error_cap`, `sum_error_at_iteration_cap` |
 | The final conservative raw product fits signed 256-bit arithmetic | `final_raw_product_fits_i256` |
 
 ## Assurance boundary
