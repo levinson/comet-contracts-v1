@@ -21,6 +21,9 @@ pub fn sub_no_negative(e: &Env, a: &I256, b: &I256) -> I256 {
 /// -> base^(int exp) * approximate of base^(decimal exp)
 ///
 /// Returns an upper bound when `round_up` is true and a lower bound otherwise.
+///
+/// Aborts with `ErrCPowExpOutOfRange` if the exponent invariant is violated.
+/// This is not expected to occur through valid pool operations.
 pub fn c_pow(e: &Env, base: &I256, exp: &I256, round_up: bool) -> I256 {
     assert_with_error!(
         e,
@@ -35,6 +38,9 @@ pub fn c_pow(e: &Env, base: &I256, exp: &I256, round_up: bool) -> I256 {
 
     let bone = I256::from_i128(e, BONE);
     let zero = I256::from_i32(e, 0);
+    // Pool initialization constrains token weights so every exponent constructed
+    // by c_math is in [0, MAX_CPOW_EXP]. Failure indicates invalid stored state or
+    // an internal configuration/math bug.
     assert_with_error!(
         e,
         exp >= &zero && exp <= &I256::from_i128(e, MAX_CPOW_EXP),
