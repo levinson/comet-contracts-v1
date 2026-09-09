@@ -51,7 +51,7 @@ size.
 | Production input/output ratios, fees, and weights retain the `[0.5, 1.6]` operating envelope | Generated `MAX_IN_RATIO`, `MAX_OUT_RATIO`, `MAX_FEE`, and `MAX_WEIGHT`; the `configured_*_margin` and `configured_*_base_*` lemmas in `PoolConfig.lean` |
 | Every base in `[0.5, 1.6]` satisfies `abs(x) <= 3/5` | `operating_base_implies_abs_x_le_three_fifths` |
 | The computed term reaches production precision by iteration 46 throughout `[0.5, 1.6]`, before the configured cap | `pool_operating_band_numeric_margin`, `pool_operating_band_iteration_within_cap`, `pool_operating_band_converges_by_iteration_46`, `pool_operating_base_converges_by_iteration_46` |
-| On the baseline exact-input path, multi-term adverse fractional approximation error is below 10% of the minimum fee's spot-normalized value; the one-term correction has no adverse error | `baseline_exact_input_multiterm_adverse_error_lt_tenth_min_fee`, `baseline_exact_input_first_term_adverse_error_lt_tenth_min_fee` |
+| On the baseline exact-input path, multi-term adverse fractional approximation error is below 5% of the minimum fee's spot-normalized value; the one-term correction has no adverse error | `baseline_exact_input_multiterm_adverse_error_lt_five_percent_min_fee`, `first_term_upper_has_no_adverse_error` |
 | Below-one integer-power composition and a positive output-balance scale preserve the adverse-error fee comparison | `below_one_upper_composition_preserves_adverse_bound`, `positive_output_scale_preserves_fee_comparison` |
 | Non-negative directed bounds compose under multiplication | `mul_lower_bound`, `mul_upper_bound` |
 | The production Rust precision, exponent, scale, pool-configuration, and iteration constants discharge the proof premises | Generated constants in `GeneratedConstants.lean`; `configured_exponent_limit`, `term_error_at_iteration_cap`, `real_scale_exceeds_term_error_cap`, `sum_error_at_iteration_cap` |
@@ -59,13 +59,13 @@ size.
 
 ## Minimum-fee comparison
 
-For the below-one, round-up fractional path used by an exact-input swap, a one-term result receives the baseline's one-unit upward correction and therefore has no adverse approximation error. If the loop reaches an iteration `N >= 2`, the preceding computed term was greater than `CPOW_PRECISION`. Term contraction by at most `1/2` and the `3k - 2` recurrence-error bound imply
+For the below-one, round-up fractional path used by an exact-input swap, a one-term result receives the baseline's one-unit upward correction and therefore has no adverse approximation error. If the loop reaches an iteration `N >= 2`, the preceding computed term was greater than `CPOW_PRECISION`. The configured maximum input ratio and minimum fee sharpen the exact-input contraction factor to strictly less than `1/4`, so the `3k - 2` recurrence-error bound implies
 
 ```text
-CPOW_PRECISION < abs(T_1) * (1/2)^(N - 2) + (3(N - 1) - 2).
+CPOW_PRECISION < abs(T_1) * (1/4)^(N - 2) + (3(N - 1) - 2).
 ```
 
-For every `2 <= N <= 46`, Lean checks that this threshold forces the complete accumulated rounding budget below `(MIN_FEE / STROOP) * abs(T_1) / 10`. The exact below-one power is no greater than its finite partial sum, so the omitted negative tail cannot increase adverse error. Finally, `abs(T_1) = BONE * fractional_exponent * base_displacement`, while the minimum fee's spot-normalized value is `MIN_FEE_RATE * BONE * full_exponent * nominal_input_ratio`; the fractional exponent does not exceed the full exponent, and the computed base displacement does not exceed the nominal input ratio. This proves the adverse fractional approximation error is below 10% of the minimum fee's continuous spot-normalized output value. The below-one integer factor is at most one and cannot amplify the comparison.
+For every `2 <= N <= 46`, Lean checks that this continuation threshold forces the complete accumulated rounding budget below `(MIN_FEE / STROOP) * abs(T_1) / 20`. At `N = 2`, where the finite table reaches its maximum fee share, the sign-specific first-term floor property proves `CPOW_PRECISION < abs(T_1)` without the generic one-unit error slack. The exact below-one power is no greater than its finite partial sum, so the omitted negative tail cannot increase adverse error. Finally, `abs(T_1) = BONE * fractional_exponent * base_displacement`, while the minimum fee's spot-normalized value is `MIN_FEE_RATE * BONE * full_exponent * nominal_input_ratio`; the fractional exponent does not exceed the full exponent, and the computed base displacement does not exceed the nominal input ratio. This proves the adverse fractional approximation error is strictly below 5% of the minimum fee's continuous spot-normalized output value. The below-one integer factor is at most one and cannot amplify the comparison.
 
 This is a one-sided safety result, not a bound on absolute approximation error. Conservative error may exceed the stated percentage without harming the pool, particularly for very small one-term inputs. Final token-unit quantization is also not part of this theorem.
 
