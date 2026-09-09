@@ -1,6 +1,6 @@
 # Machine-checked c_pow lemmas
 
-This Lean project machine-checks the fixed-point rounding, recurrence-error budget, geometric-tail simplification, operating-band convergence, composition, configured limits, and overflow lemmas used by `contracts/CPOW_BOUNDS.md`.
+This Lean project machine-checks the baseline `c_pow` recurrence-error budget, geometric-tail simplification, operating-band convergence, composition, configured limits, and application-specific signed-`I256` magnitude and denominator bounds.
 
 The checked-in Lean constants are generated from the production Rust constants,
 so the proof cannot silently keep using old pool ratios, fees, weights,
@@ -53,15 +53,14 @@ size.
 | The computed term reaches production precision by iteration 46 throughout `[0.5, 1.6]`, before the configured cap | `pool_operating_band_numeric_margin`, `pool_operating_band_iteration_within_cap`, `pool_operating_band_converges_by_iteration_46`, `pool_operating_base_converges_by_iteration_46` |
 | Non-negative directed bounds compose under multiplication | `mul_lower_bound`, `mul_upper_bound` |
 | The production Rust precision, exponent, scale, pool-configuration, and iteration constants discharge the proof premises | Generated constants in `GeneratedConstants.lean`; `configured_exponent_limit`, `term_error_at_iteration_cap`, `real_scale_exceeds_term_error_cap`, `sum_error_at_iteration_cap` |
-| The final conservative raw product fits signed 256-bit arithmetic | `final_raw_product_fits_i256` |
+| The final conservative raw product and every recurrence denominator fit signed 256-bit arithmetic | `final_raw_product_fits_i256`, `cpow_raw_magnitude_bound_fits_i256`, `cpow_denominator_bound_fits_i256`, `cpow_denominator_fits_i256` |
+
+## Fixed-point implementation refinement
+
+The reusable checked-`I256` model and proofs that the positive-denominator `I256` algorithms refine mathematical floor and ceiling are maintained alongside `src/i256.rs` on the companion `proof/formalize-i256-fixed-point` branch of `soroban-fixed-point-math`. That branch is based on `script3` upstream commit `c85960e`; its source is byte-for-byte identical to the implementation shipped by the exact `soroban-fixed-point-math` 1.5.0 dependency pinned here. This project retains only the `c_pow`-specific magnitude and denominator bounds.
+
+All production fixed-point denominators in `c_pow` are positive. Negative-denominator behavior is therefore outside the proof composition required by this contract.
 
 ## Assurance boundary
 
-This project checks supporting mathematical lemmas, but it does not yet
-establish the complete `c_pow` postcondition. The remaining work is to
-formalize the generalized binomial series and its equality to real
-exponentiation, instantiate the recurrence lemmas for every branch of the
-executable model, and prove correspondence between that model and Soroban's
-`I256` implementation. Until those links are completed,
-`contracts/CPOW_BOUNDS.md` remains a human-reviewed proof argument rather than
-a fully machine-checked proof of the deployed contract.
+This project checks supporting mathematical and bounded-integer lemmas, but it does not yet establish a complete error bound for the deployed baseline `c_pow`. The remaining work is to formalize the generalized binomial series and its equality to real exponentiation, instantiate the recurrence and final-adjustment lemmas for every branch of an executable baseline model, mechanically compose this project's operating bounds with the upstream fixed-point refinement theorems, and connect that model to the Rust control flow. The upstream Rust-to-Lean source correspondence is reviewed rather than produced by verified Rust extraction, and primitive Soroban host operations are trusted to satisfy their protocol-specified checked-integer semantics.
