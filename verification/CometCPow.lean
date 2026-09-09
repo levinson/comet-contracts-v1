@@ -6,3 +6,4 @@ import CometCPow.I256Bounds
 import CometCPow.PoolConfig
 import CometCPow.OperatingBand
 import CometCPow.BaselineFeeBound
+import CometCPow.OperationFeeBound
