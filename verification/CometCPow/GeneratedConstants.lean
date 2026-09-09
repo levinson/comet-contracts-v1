@@ -11,6 +11,7 @@ def MIN_WEIGHT : ℕ := 1000000
 def MAX_WEIGHT : ℕ := 9000000
 def MAX_IN_RATIO : ℕ := 3333334
 def MAX_OUT_RATIO : ℕ := 3333334
+def MIN_FEE : ℕ := 10
 def MAX_FEE : ℕ := 1000000
 def CPOW_PRECISION : ℕ := 100000000
 def MAX_CPOW_ITERS : ℕ := 50
