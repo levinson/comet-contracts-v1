@@ -55,6 +55,18 @@ theorem oneAddRpowDerivativeCoefficient_even_nonpos
   rw [heven, one_mul]
   exact oneSubRpowDerivativeCoefficient_nonpos ha0 ha1 (2 * k + 2) (by omega)
 
+/-- Every odd derivative coefficient from degree three onward is non-negative. -/
+theorem oneAddRpowDerivativeCoefficient_odd_nonneg
+    {a : ℝ} (ha0 : 0 ≤ a) (ha1 : a ≤ 1) (k : ℕ) :
+    0 ≤ oneAddRpowDerivativeCoefficient a (2 * k + 3) := by
+  rw [oneAddRpowDerivativeCoefficient_eq_sign_mul_oneSub]
+  have hodd : (-1 : ℝ) ^ (2 * k + 3) = -1 := by
+    rw [show 2 * k + 3 = 2 * (k + 1) + 1 by omega, pow_add, pow_mul]
+    norm_num
+  rw [hodd]
+  simpa using neg_nonneg.mpr
+    (oneSubRpowDerivativeCoefficient_nonpos ha0 ha1 (2 * k + 3) (by omega))
+
 /-- Formula for every within-set derivative on a non-negative interval. -/
 theorem iteratedDerivWithin_one_add_rpow
     {a q : ℝ} (hq0 : 0 < q) : ∀ n t, t ∈ Icc (0 : ℝ) q →
@@ -191,6 +203,67 @@ theorem exact_output_binomial_odd_partial_upper
       (1 + q) ^ a ≤
         taylorWithinEval (fun y : ℝ ↦ (1 + y) ^ a) n (Icc 0 q) 0 q := by
     linarith [hremainder', hremaindernonpos]
+  have hscaled := mul_le_mul_of_nonneg_left hpowerTaylor
+    (show (0 : ℝ) ≤ BONE by norm_num [BONE])
+  rw [bone_mul_taylorWithinEval_eq_exactOutputBinomialSum hq0 n] at hscaled
+  simpa [q, n] using hscaled
+
+/-- Every positive even above-one generalized-binomial partial is a lower bound. -/
+theorem exact_output_binomial_even_partial_lower
+    {a base : ℝ} (ha0 : 0 ≤ a) (ha1 : a ≤ 1)
+    (hbase1 : 1 < base) (k : ℕ) :
+    (∑ j ∈ Finset.range ((2 * k + 2) + 1),
+        exactOutputBinomialTerm a base j) ≤
+      (BONE : ℝ) * base ^ a := by
+  let q : ℝ := base - 1
+  let n : ℕ := 2 * k + 2
+  have hq0 : 0 < q := by dsimp [q]; linarith
+  have hnonzero : ∀ y ∈ Icc (0 : ℝ) q, 1 + y ≠ 0 := by
+    intro y hy
+    have : 0 < 1 + y := by linarith [hy.1]
+    exact this.ne'
+  have hcont : ContDiffOn ℝ (n + 1)
+      (fun y : ℝ ↦ (1 + y) ^ a) (Icc 0 q) :=
+    (contDiff_const.add contDiff_id).contDiffOn.rpow_const_of_ne hnonzero
+  have hcontN : ContDiffOn ℝ n
+      (fun y : ℝ ↦ (1 + y) ^ a) (Icc 0 q) :=
+    hcont.of_le (by exact_mod_cast Nat.le_succ n)
+  have hdiff : DifferentiableOn ℝ
+      (iteratedDerivWithin n (fun y : ℝ ↦ (1 + y) ^ a) (Icc 0 q))
+      (Ioo 0 q) :=
+    (hcont.differentiableOn_iteratedDerivWithin
+      (by exact_mod_cast n.lt_succ_self) (uniqueDiffOn_Icc hq0)).mono
+        Ioo_subset_Icc_self
+  rcases taylor_mean_remainder_lagrange hq0 hcontN hdiff with
+    ⟨point, hpoint, hremainder⟩
+  have hremainder' :
+      (1 + q) ^ a -
+          taylorWithinEval (fun y : ℝ ↦ (1 + y) ^ a) n (Icc 0 q) 0 q =
+        iteratedDerivWithin (n + 1) (fun y : ℝ ↦ (1 + y) ^ a)
+            (Icc 0 q) point * q ^ (n + 1) / (n + 1).factorial := by
+    simpa using hremainder
+  have hderiv := iteratedDerivWithin_one_add_rpow (a := a) hq0 (n + 1) point
+    ⟨hpoint.1.le, hpoint.2.le⟩
+  have hindex' : n + 1 = 2 * k + 3 := by omega
+  have hcoeff : 0 ≤ oneAddRpowDerivativeCoefficient a (n + 1) := by
+    rw [hindex']
+    exact oneAddRpowDerivativeCoefficient_odd_nonneg ha0 ha1 k
+  have hbaseAtPoint : 0 ≤ 1 + point := by linarith [hpoint.1]
+  have hderivNonneg :
+      0 ≤ iteratedDerivWithin (n + 1) (fun y : ℝ ↦ (1 + y) ^ a)
+          (Icc 0 q) point := by
+    rw [hderiv]
+    exact mul_nonneg hcoeff (Real.rpow_nonneg hbaseAtPoint _)
+  have hqpow : 0 ≤ q ^ (n + 1) := pow_nonneg hq0.le _
+  have hfactorial : (0 : ℝ) ≤ (n + 1).factorial := by positivity
+  have hremaindernonneg :
+      0 ≤ iteratedDerivWithin (n + 1) (fun y : ℝ ↦ (1 + y) ^ a)
+          (Icc 0 q) point * q ^ (n + 1) / (n + 1).factorial :=
+    div_nonneg (mul_nonneg hderivNonneg hqpow) hfactorial
+  have hpowerTaylor :
+      taylorWithinEval (fun y : ℝ ↦ (1 + y) ^ a) n (Icc 0 q) 0 q ≤
+        (1 + q) ^ a := by
+    linarith [hremainder', hremaindernonneg]
   have hscaled := mul_le_mul_of_nonneg_left hpowerTaylor
     (show (0 : ℝ) ≤ BONE by norm_num [BONE])
   rw [bone_mul_taylorWithinEval_eq_exactOutputBinomialSum hq0 n] at hscaled
