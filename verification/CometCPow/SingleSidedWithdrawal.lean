@@ -578,12 +578,109 @@ theorem single_sided_withdrawal_minimum_fee_power_value_positive
       (mul_pos (by norm_num [BONE]) (div_pos (by linarith) hweight0))
       hnominal)
 
+/--
+Below the convergence band, a successful maximum-output check makes the
+withdrawal strictly pool-favoring independently of the `c_pow` result.
+-/
+theorem successful_single_sided_withdrawal_low_base_has_no_adverse_error
+    {outputBalance scale weight feeRate nominalRatio computedBase : ℝ}
+    {output maxOutput : ℤ}
+    (houtputBalance : 0 < outputBalance) (hscale : 0 < scale)
+    (hweight0 : 0 < weight) (hweight1 : weight < 1)
+    (hfee0 : 0 ≤ feeRate)
+    (hfeeUpper : feeRate ≤ (MAX_FEE : ℝ) / STROOP)
+    (hratio0 : 0 ≤ nominalRatio) (hratio1 : nominalRatio < 1)
+    (hbase : singleSidedWithdrawalIdealBase nominalRatio ≤ computedBase)
+    (hbaseLow : computedBase < 1 / 2)
+    (hmaxOutputFloor :
+      IsFloor maxOutput
+        (outputBalance / scale * ((MAX_OUT_RATIO : ℝ) / STROOP)))
+    (hmaxOutputGuard : output ≤ maxOutput) :
+    (output : ℝ) -
+        singleSidedWithdrawalIdealOutput
+          (outputBalance / scale) weight feeRate nominalRatio < 0 := by
+  have hidealBase0 : 0 < singleSidedWithdrawalIdealBase nominalRatio := by
+    rw [singleSidedWithdrawalIdealBase]
+    linarith
+  have hidealBase1 : singleSidedWithdrawalIdealBase nominalRatio ≤ 1 := by
+    rw [singleSidedWithdrawalIdealBase]
+    linarith
+  have hexponentOne : 1 < 1 / weight := (one_lt_div hweight0).2 hweight1
+  have hpowerHalf :
+      singleSidedWithdrawalIdealBase nominalRatio ^ (1 / weight) < 1 / 2 := by
+    calc
+      singleSidedWithdrawalIdealBase nominalRatio ^ (1 / weight) ≤
+          singleSidedWithdrawalIdealBase nominalRatio ^ (1 : ℝ) :=
+        Real.rpow_le_rpow_of_exponent_ge hidealBase0 hidealBase1 hexponentOne.le
+      _ = singleSidedWithdrawalIdealBase nominalRatio := by
+        rw [Real.rpow_one]
+      _ ≤ computedBase := hbase
+      _ < 1 / 2 := hbaseLow
+  have hfeeTenth : feeRate ≤ 1 / 10 := by
+    exact le_trans hfeeUpper (by norm_num [MAX_FEE, STROOP])
+  have hweightedFeeUpper : singleSidedWithdrawalFeeRate weight feeRate ≤ 1 / 10 := by
+    rw [singleSidedWithdrawalFeeRate]
+    calc
+      (1 - weight) * feeRate ≤ 1 * feeRate :=
+        mul_le_mul_of_nonneg_right (by linarith) hfee0
+      _ = feeRate := by ring
+      _ ≤ 1 / 10 := hfeeTenth
+  have hfeeMultiplierLower :
+      9 / 10 ≤ 1 - singleSidedWithdrawalFeeRate weight feeRate := by
+    linarith
+  have hnative0 : 0 < outputBalance / scale := div_pos houtputBalance hscale
+  have hgrowth :
+      1 / 2 < 1 - singleSidedWithdrawalIdealBase nominalRatio ^ (1 / weight) := by
+    linarith
+  have hnativeGrowth :
+      outputBalance / scale * (1 / 2) <
+        outputBalance / scale *
+          (1 - singleSidedWithdrawalIdealBase nominalRatio ^ (1 / weight)) :=
+    mul_lt_mul_of_pos_left hgrowth hnative0
+  have hscaledGrowth :
+      outputBalance / scale * (1 / 2) * (9 / 10) <
+        outputBalance / scale *
+            (1 - singleSidedWithdrawalIdealBase nominalRatio ^ (1 / weight)) *
+          (9 / 10) :=
+    mul_lt_mul_of_pos_right hnativeGrowth (by norm_num)
+  have hgrowth0 :
+      0 ≤ outputBalance / scale *
+        (1 - singleSidedWithdrawalIdealBase nominalRatio ^ (1 / weight)) :=
+    mul_nonneg hnative0.le (le_trans (by norm_num) hgrowth.le)
+  have hidealLower :
+      outputBalance / scale * (9 / 20) <
+        singleSidedWithdrawalIdealOutput
+          (outputBalance / scale) weight feeRate nominalRatio := by
+    rw [singleSidedWithdrawalIdealOutput]
+    calc
+      outputBalance / scale * (9 / 20) =
+          outputBalance / scale * (1 / 2) * (9 / 10) := by ring
+      _ < outputBalance / scale *
+            (1 - singleSidedWithdrawalIdealBase nominalRatio ^ (1 / weight)) *
+          (9 / 10) := hscaledGrowth
+      _ ≤ outputBalance / scale *
+            (1 - singleSidedWithdrawalIdealBase nominalRatio ^ (1 / weight)) *
+          (1 - singleSidedWithdrawalFeeRate weight feeRate) :=
+        mul_le_mul_of_nonneg_left hfeeMultiplierLower hgrowth0
+  have hguardReal : (output : ℝ) ≤ (maxOutput : ℝ) := by
+    exact_mod_cast hmaxOutputGuard
+  have houtputCap :
+      (output : ℝ) ≤
+        outputBalance / scale * ((MAX_OUT_RATIO : ℝ) / STROOP) :=
+    le_trans hguardReal hmaxOutputFloor.le
+  have hratioBound : (MAX_OUT_RATIO : ℝ) / STROOP < 9 / 20 := by
+    norm_num [MAX_OUT_RATIO, STROOP]
+  have houtputUpper :
+      (output : ℝ) < outputBalance / scale * (9 / 20) :=
+    lt_of_le_of_lt houtputCap (mul_lt_mul_of_pos_left hratioBound hnative0)
+  linarith
+
 /-!
 The following four entry theorems mirror every `c_pow` control-flow case used
 by the exact-LP-input single-sided withdrawal: a later fractional stop, a
 corrected first fractional stop, the unit-base shortcut, and an integer-only
-exponent.  Only the later fractional case needs the explicit `[1/2, 1]`
-operating-band premise.
+exponent. The successful caller guard handles a later fractional result below
+the convergence band independently of its approximation.
 -/
 
 /--
@@ -597,17 +694,17 @@ theorem baseline_single_sided_withdrawal_multiterm_adverse_error_lt_five_percent
       computedBase computedExponent a computedFractional wholeComputed
       computedPower feeMultiplier scale : ℝ}
     {computedBaseRaw computedExponentRaw firstRounded computedPowerRaw
-      newBalance tokenAmountBeforeFee result output : ℤ}
+      newBalance tokenAmountBeforeFee result output maxOutput : ℤ}
     (hpoolSupply : 0 < poolSupply) (hpoolAmountIn : 0 < poolAmountIn)
     (hnominal : nominalRatio = poolAmountIn / poolSupply)
     (hratio1 : nominalRatio < 1)
     (houtputBalance : 0 < outputBalance)
     (hweight0 : 0 < weight) (hweight1 : weight < 1)
-    (hfee0 : 0 ≤ feeRate) (hfee1 : feeRate ≤ 1)
+    (hfee0 : 0 ≤ feeRate)
+    (hfeeUpper : feeRate ≤ (MAX_FEE : ℝ) / STROOP)
     (hcomputedBase : computedBase = (computedBaseRaw : ℝ) / BONE)
     (hbaseCeil :
       IsCeil computedBaseRaw ((BONE : ℝ) * (1 - nominalRatio)))
-    (hbaseLower : 1 / 2 ≤ computedBase)
     (hbaseNonunit : computedBase < 1)
     (hcomputedExponentRaw0 : 0 ≤ computedExponentRaw)
     (hcomputedExponent :
@@ -649,7 +746,11 @@ theorem baseline_single_sided_withdrawal_multiterm_adverse_error_lt_five_percent
       (tokenAmountBeforeFee : ℝ) = outputBalance - (newBalance : ℝ))
     (hfeeFloor :
       IsFloor result ((tokenAmountBeforeFee : ℝ) * feeMultiplier))
-    (hdownscaleFloor : IsFloor output ((result : ℝ) / scale)) :
+    (hdownscaleFloor : IsFloor output ((result : ℝ) / scale))
+    (hmaxOutputFloor :
+      IsFloor maxOutput
+        (outputBalance / scale * ((MAX_OUT_RATIO : ℝ) / STROOP)))
+    (hmaxOutputGuard : output ≤ maxOutput) :
     (output : ℝ) -
         singleSidedWithdrawalIdealOutput
           (outputBalance / scale) weight feeRate nominalRatio <
@@ -663,19 +764,35 @@ theorem baseline_single_sided_withdrawal_multiterm_adverse_error_lt_five_percent
     hcomputedExponentRaw0 hcomputedExponent hexponentFloor
   have hdisplacement := single_sided_withdrawal_displacement_le_nominal_ratio
     hbase.1
-  have hcpow :=
-    baseline_single_sided_withdrawal_cpow_multiterm_adverse_error_lt_five_percent_min_fee
-      coefficientProduct multiplied computedTerm hweight0 hweight1 hnominal0
-        hnominalPositive ha0 ha1 hintegerPart hcomputedExponentSplit
-        hexponent.2 hbaseLower hbase.2 hbaseNonunit hdisplacement hn2
-        hcontinued hfirstFloor hfirstRounded hcoefficientFloor
-        hmultiplyTermFloor hdivideTermFloor hcomputedFractional hwholeTrace
-        hcomputedPower hcomposedCeil
-  exact single_sided_withdrawal_from_fixed_point_refinements
-    hpoolSupply hpoolAmountIn hnominal hratio1 houtputBalance hweight0
-      hweight1 hfee0 hfee1 hcomputedBase hbaseCeil hcomputedExponentRaw0
-      hcomputedExponent hexponentFloor hcpow hfeeMultiplier hscale
-      hnewBalanceCeil htokenAmount hfeeFloor hdownscaleFloor
+  have hfee1 : feeRate ≤ 1 :=
+    le_trans hfeeUpper (by norm_num [MAX_FEE, STROOP])
+  by_cases hbaseLower : 1 / 2 ≤ computedBase
+  · have hcpow :=
+      baseline_single_sided_withdrawal_cpow_multiterm_adverse_error_lt_five_percent_min_fee
+        coefficientProduct multiplied computedTerm hweight0 hweight1 hnominal0
+          hnominalPositive ha0 ha1 hintegerPart hcomputedExponentSplit
+          hexponent.2 hbaseLower hbase.2 hbaseNonunit hdisplacement hn2
+          hcontinued hfirstFloor hfirstRounded hcoefficientFloor
+          hmultiplyTermFloor hdivideTermFloor hcomputedFractional hwholeTrace
+          hcomputedPower hcomposedCeil
+    exact single_sided_withdrawal_from_fixed_point_refinements
+      hpoolSupply hpoolAmountIn hnominal hratio1 houtputBalance hweight0
+        hweight1 hfee0 hfee1 hcomputedBase hbaseCeil hcomputedExponentRaw0
+        hcomputedExponent hexponentFloor hcpow hfeeMultiplier hscale
+        hnewBalanceCeil htokenAmount hfeeFloor hdownscaleFloor
+  · have hpoolFavoring :=
+      successful_single_sided_withdrawal_low_base_has_no_adverse_error
+        houtputBalance hscale hweight0 hweight1 hfee0 hfeeUpper hnominal0
+          hratio1 hbase.1 (lt_of_not_ge hbaseLower) hmaxOutputFloor
+          hmaxOutputGuard
+    have hminimumOutputPositive :
+        0 < singleSidedWithdrawalMinimumFeeOutputValue
+          (outputBalance / scale) weight nominalRatio / 20 := by
+      rw [singleSidedWithdrawalMinimumFeeOutputValue, minimum_fee_rate_value]
+      have hfeeExponentPositive : 0 < (1 - weight) / weight :=
+        div_pos (by linarith) hweight0
+      positivity
+    linarith
 
 /--
 Full corrected-first-term exact-LP-input withdrawal comparison. The `c_pow`
