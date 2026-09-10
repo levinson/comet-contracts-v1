@@ -321,20 +321,32 @@ first-order correction.
 ## Verification status
 
 The standalone Lean project in [`../verification`](../verification/README.md)
-machine-checks the reusable fixed-point rounding, recurrence-error budget,
-geometric-tail simplification, composition, configured-limit, and overflow
-lemmas above. Its configured values are generated from the production Rust
-constants, and CI rejects the generated Lean module if those values drift. Lean
-and mathlib are pinned, CI rebuilds the project, and the proof sources contain
-no `sorry`, `admit`, or custom axioms. The compiled namespace is also audited
-transitively, allowing only Lean's standard `propext`, `Classical.choice`, and
-`Quot.sound` foundations.
+machine-checks the reusable recurrence-error budget, geometric-tail
+simplification, composition, configured-limit, and `c_pow`-specific signed
+256-bit magnitude and denominator bounds above. Its configured values are
+generated from the production Rust constants, and CI rejects the generated
+Lean module if those values drift. Lean and mathlib are pinned, CI rebuilds the
+project, and the proof sources contain no `sorry`, `admit`, or custom axioms.
+The compiled namespace is also audited transitively, allowing only Lean's
+standard `propext`, `Classical.choice`, and `Quot.sound` foundations.
 
-This is the first verification layer, not yet a machine-checked proof of the
-deployed `c_pow` postcondition. The remaining trusted boundary is explicit:
-the generalized binomial series must be connected to real exponentiation, the
-lemmas must be instantiated for every branch of an executable `c_pow` model,
-and that model must be refined to the pinned Soroban `I256` implementation.
-Until those links are completed, the full enclosure claim remains the
-mathematical argument in this document, corroborated by the existing boundary
-and slow-convergence regression tests.
+The reusable checked-`I256` model and positive-denominator floor/ceiling
+refinement proofs are maintained with the fixed-point implementation on the
+companion `proof/formalize-i256-fixed-point` branch of
+`soroban-fixed-point-math`, pinned here to proof commit
+[`649f02a`](https://github.com/blnt-protocol/soroban-fixed-point-math/commit/649f02aab503e0502f495b64de5575da2c28434b).
+That proof commit is based on `script3` upstream commit `c85960e`; its
+`src/i256.rs` is byte-for-byte identical to the implementation in the exact
+1.5.0 dependency pinned by this contract.
+
+This is not yet a machine-checked proof of the deployed `c_pow` postcondition.
+The generalized binomial series must still be connected to real
+exponentiation, the lemmas must be instantiated for every branch of an
+executable `c_pow` model, this project's bounds must be mechanically composed
+with the upstream refinement theorems, and that model must be connected to the
+Rust control flow. The upstream Rust-to-Lean correspondence remains
+human-reviewed, and primitive Soroban host operations are trusted to satisfy
+their protocol-specified checked-integer semantics. Until those links are
+completed, the full enclosure claim remains the mathematical argument in this
+document, corroborated by the existing boundary and slow-convergence
+regression tests.
