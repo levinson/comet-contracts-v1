@@ -18,3 +18,4 @@ import CometCPow.SingleSidedWithdrawal
 import CometCPow.SingleSidedDeposit
 import CometCPow.SingleSidedTokenDeposit
 import CometCPow.SingleSidedTokenWithdrawal
+import CometCPow.ProportionalLiquidity
