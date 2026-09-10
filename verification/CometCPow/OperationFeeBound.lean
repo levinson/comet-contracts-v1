@@ -202,6 +202,25 @@ theorem accumulated_error_lt_five_percent_min_fee_of_weighted_later_terms
       MIN_FEE, STROOP, CPOW_PRECISION] at hcontinue ⊢ <;>
     linarith
 
+/--
+At displacement at most one half, the weighted fee also covers the extra
+final-term recurrence budget introduced by the below-one round-down path,
+which adds its final negative term a second time.
+-/
+theorem augmented_error_lt_five_percent_min_fee_of_weighted_later_terms
+    {n : ℕ} {weightedFirstTerm : ℝ}
+    (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
+    (hcontinue :
+      (CPOW_PRECISION : ℝ) <
+        weightedFirstTerm * ((1 : ℝ) / 2 / 2) * ((1 : ℝ) / 2) ^ (n - 3) +
+          (3 * ((n - 1 : ℕ) : ℝ) - 2)) :
+    accumulatedError n + (3 * (n : ℝ) - 2) <
+      FIVE_PERCENT_MIN_FEE_RATE * weightedFirstTerm := by
+  interval_cases n <;>
+    norm_num [accumulatedError, FIVE_PERCENT_MIN_FEE_RATE, MIN_FEE_RATE,
+      MIN_FEE, STROOP, CPOW_PRECISION] at hcontinue ⊢ <;>
+    linarith
+
 /-- An above-one operation can spend up to `8/5` of its nominal ratio in base displacement. -/
 theorem exact_output_fee_value_dominates_first_term
     {S a fullExponent q nominalRatio firstTerm feeValue : ℝ}

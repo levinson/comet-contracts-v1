@@ -9,6 +9,7 @@ import CometCPow.PoolConfig
 import CometCPow.OperatingBand
 import CometCPow.BaselineFeeBound
 import CometCPow.BinomialUpper
+import CometCPow.BinomialBelowLower
 import CometCPow.BinomialAboveUpper
 import CometCPow.OperationFeeBound
 import CometCPow.ExactInputSwap
@@ -16,3 +17,4 @@ import CometCPow.ExactOutputSwap
 import CometCPow.SingleSidedWithdrawal
 import CometCPow.SingleSidedDeposit
 import CometCPow.SingleSidedTokenDeposit
+import CometCPow.SingleSidedTokenWithdrawal
