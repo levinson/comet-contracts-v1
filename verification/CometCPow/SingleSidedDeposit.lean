@@ -612,6 +612,228 @@ theorem baseline_single_sided_deposit_cpow_adverse_error_lt_five_percent_min_fee
     exact lt_of_le_of_lt hcomposition
       (lt_trans hcap (lt_trans hnumeric hfeeLarge))
 
+/-- A fractional reciprocal exponent always leaves a positive whole exponent. -/
+theorem single_sided_deposit_fractional_integer_part_positive
+    {integerPart : ℕ} {weight computedExponent a : ℝ}
+    (hweight0 : 0 < weight)
+    (hweightUpper : weight ≤ (MAX_WEIGHT : ℝ) / STROOP)
+    (hcomputedExponentLower : 1 / weight ≤ computedExponent)
+    (ha1 : a ≤ 1)
+    (hcomputedExponentSplit : computedExponent = (integerPart : ℝ) + a) :
+    1 ≤ integerPart := by
+  by_contra hnot
+  have hzero : integerPart = 0 := Nat.eq_zero_of_not_pos hnot
+  have hcomputedEq : computedExponent = a := by
+    simpa [hzero] using hcomputedExponentSplit
+  have hweightStrict : weight < 1 := by
+    have hmax : (MAX_WEIGHT : ℝ) / STROOP < 1 := by
+      norm_num [MAX_WEIGHT, STROOP]
+    exact lt_of_le_of_lt hweightUpper hmax
+  have hidealOne : 1 < 1 / weight := (one_lt_div hweight0).2 hweightStrict
+  linarith
+
+/--
+Across the full successful `c_pow` base domain, a retained odd fractional
+partial stays within the iteration-cap floor budget below `BONE`.
+-/
+theorem single_sided_deposit_later_fractional_gt_bone_sub_cap
+    (coefficientProduct multiplied computedTerm : ℕ → ℤ)
+    {degree oddIndex : ℕ}
+    {a computedBase computedFractional : ℝ}
+    (ha0 : 0 ≤ a) (ha1 : a ≤ 1)
+    (hbaseStrict : 1 < computedBase) (hbaseTwo : computedBase < 2)
+    (hdegreeOdd : degree = 2 * oddIndex + 1)
+    (hdegree50 : degree ≤ 50)
+    (hfirstFloor :
+      IsFloor (computedTerm 1) (exactOutputBinomialTerm a computedBase 1))
+    (hcoefficientFloor : ∀ k, 1 ≤ k → k < 50 →
+      IsFloor (coefficientProduct (k + 1))
+        ((BONE : ℝ) * (a - (k : ℝ)) * (computedBase - 1)))
+    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < 50 →
+      IsFloor (multiplied (k + 1))
+        ((computedTerm k : ℝ) * (coefficientProduct (k + 1) : ℝ) /
+          (BONE : ℝ)))
+    (hdivideTermFloor : ∀ k, 1 ≤ k → k < 50 →
+      IsFloor (computedTerm (k + 1))
+        ((multiplied (k + 1) : ℝ) / ((k : ℝ) + 1)))
+    (hcomputedFractional :
+      computedFractional = (BONE : ℝ) +
+        ∑ k ∈ Finset.range degree, (computedTerm (k + 1) : ℝ)) :
+    (BONE : ℝ) - 3725 < computedFractional := by
+  have hx : |computedBase - 1| ≤ (1 : ℝ) := by
+    rw [abs_of_nonneg (sub_nonneg.mpr hbaseStrict.le)]
+    linarith
+  let T : ℕ → ℝ := exactOutputBinomialTerm a computedBase
+  let U : ℕ → ℝ := fun k ↦ (computedTerm k : ℝ)
+  have hrec : ∀ k,
+      T (k + 1) =
+        T k * (a - (k : ℝ)) * (computedBase - 1) / ((k : ℝ) + 1) := by
+    intro k
+    exact exactOutputBinomialTerm_succ a computedBase k
+  have hfirstExact : T 1 = (BONE : ℝ) * a * (computedBase - 1) := by
+    exact exactOutputBinomialTerm_one a computedBase
+  have hfirst0 : 0 ≤ T 1 := by
+    rw [hfirstExact]
+    exact mul_nonneg (mul_nonneg (by norm_num [BONE]) ha0)
+      (sub_nonneg.mpr hbaseStrict.le)
+  have hfirstMagnitude : |T 1| = (BONE : ℝ) * a * (computedBase - 1) := by
+    rw [abs_of_nonneg hfirst0, hfirstExact]
+  have hfirstError : |T 1 - U 1| < 1 := by
+    dsimp [T, U]
+    exact hfirstFloor.abs_error_lt_one
+  have hfirstBelowScale : |T 1| < BONE := by
+    rw [hfirstMagnitude]
+    have hproduct : a * (computedBase - 1) < 1 := by
+      have hmul : a * (computedBase - 1) ≤ 1 * (computedBase - 1) :=
+        mul_le_mul_of_nonneg_right ha1 (sub_nonneg.mpr hbaseStrict.le)
+      linarith
+    have hscaled := mul_lt_mul_of_pos_left hproduct
+      (show (0 : ℝ) < BONE by norm_num [BONE])
+    simpa [mul_assoc] using hscaled
+  have hexactTermMagnitude : ∀ k, 1 ≤ k → |T k| < BONE := by
+    intro k hk
+    have hterms := fractional_binomial_terms_from_first_bound
+      T ha0 ha1 hx hrec (k - 1)
+    have hindex : k - 1 + 1 = k := by omega
+    rw [hindex] at hterms
+    have hscale : |T 1| * (1 : ℝ) ^ (k - 1) = |T 1| := by simp
+    rw [hscale] at hterms
+    exact lt_of_le_of_lt hterms hfirstBelowScale
+  have herrorRec : ∀ k, 1 ≤ k → k < 50 →
+      |T (k + 1) - U (k + 1)| <
+        (1 + 1 / (((k + 1 : ℕ) : ℝ) * (BONE : ℝ))) * |T k - U k| +
+          1 / ((k + 1 : ℕ) : ℝ) + 1 / ((k + 1 : ℕ) : ℝ) + 1 := by
+    intro k hk hk50
+    have hcoefficientNonpos : a - (k : ℝ) ≤ 0 := by
+      have hkReal : (1 : ℝ) ≤ k := by exact_mod_cast hk
+      linarith
+    have hcoefficientBound : |a - (k : ℝ)| ≤ (k : ℝ) + 1 := by
+      rw [abs_of_nonpos hcoefficientNonpos]
+      linarith
+    have hstep := three_floor_recurrence_step_error
+      (S := (BONE : ℝ)) (K := (k : ℝ) + 1)
+      (exactPrevious := T k) (computedPrevious := U k)
+      (coefficient := a - (k : ℝ)) (displacement := computedBase - 1)
+      (coefficientProduct := coefficientProduct (k + 1))
+      (multiplied := multiplied (k + 1))
+      (nextComputed := computedTerm (k + 1))
+      (by norm_num [BONE]) (by positivity) hcoefficientBound hx
+      (hexactTermMagnitude k hk) (hcoefficientFloor k hk hk50)
+      (by simpa [U] using hmultiplyTermFloor k hk hk50)
+      (hdivideTermFloor k hk hk50)
+    rw [hrec k]
+    simpa [U, Nat.cast_add, Nat.cast_one, add_assoc] using hstep
+  let exactPartial : ℝ :=
+    ∑ k ∈ Finset.range (degree + 1), exactOutputBinomialTerm a computedBase k
+  have hpartialUpper : (BONE : ℝ) * computedBase ^ a ≤ exactPartial := by
+    dsimp [exactPartial]
+    rw [hdegreeOdd]
+    exact exact_output_binomial_odd_partial_upper ha0 ha1 hbaseStrict oddIndex
+  have hpartialLower : (BONE : ℝ) ≤ exactPartial := by
+    have hpowerOne : 1 ≤ computedBase ^ a := Real.one_le_rpow hbaseStrict.le ha0
+    have hscaled := mul_le_mul_of_nonneg_left hpowerOne
+      (show (0 : ℝ) ≤ BONE by norm_num [BONE])
+    exact le_trans (by simpa using hscaled) hpartialUpper
+  have hexactPartial :
+      exactPartial = (BONE : ℝ) + ∑ k ∈ Finset.range degree, T (k + 1) := by
+    dsimp [exactPartial, T]
+    rw [Finset.sum_range_succ']
+    simp
+    ring
+  have hdegree1 : 1 ≤ degree := by rw [hdegreeOdd]; omega
+  have hsumRaw := recurrence_implies_partial_sum_error_budget
+    (BONE : ℝ) T U (by norm_num [BONE]) hfirstError herrorRec
+      hdegree1 hdegree50
+  have hsum : |exactPartial - computedFractional| < accumulatedError degree := by
+    rw [hexactPartial, hcomputedFractional, accumulatedError]
+    convert hsumRaw using 1
+    simp [U, Nat.add_comm]
+  have herrorCap : accumulatedError degree ≤ 3725 := by
+    have hmono := accumulated_error_mono hdegree1 hdegree50
+    have hcap : accumulatedError 50 = 3725 := by
+      norm_num [accumulatedError]
+    linarith
+  have hdifference : exactPartial - computedFractional < accumulatedError degree :=
+    lt_of_le_of_lt (le_abs_self _) hsum
+  linarith
+
+/-- A positive whole exponent composes a coarse fractional lower bound. -/
+theorem single_sided_deposit_composed_power_lower
+    {integerPart : ℕ}
+    {computedBase computedFractional wholeComputed computedPower : ℝ}
+    (hbaseOne : 1 ≤ computedBase) (hintegerPartOne : 1 ≤ integerPart)
+    (hfractionalLower : (BONE : ℝ) - 3725 ≤ computedFractional)
+    (hwholeTrace : UpperCPowiTrace computedBase integerPart wholeComputed)
+    (hcomposedUpper : wholeComputed * computedFractional ≤ computedPower) :
+    computedBase * ((BONE : ℝ) - 3725) ≤ computedPower := by
+  have hbasePower : computedBase ≤ computedBase ^ integerPart := by
+    have hpower := pow_le_pow_right₀ hbaseOne hintegerPartOne
+    simpa using hpower
+  have hwholeBound := hwholeTrace.upper_bound (le_trans (by norm_num) hbaseOne)
+  have hwhole0 : 0 ≤ wholeComputed :=
+    le_trans (pow_nonneg (le_trans (by norm_num) hbaseOne) _) hwholeBound
+  have hcap0 : (0 : ℝ) ≤ BONE - 3725 := by norm_num [BONE]
+  calc
+    computedBase * ((BONE : ℝ) - 3725) ≤
+        computedBase ^ integerPart * ((BONE : ℝ) - 3725) :=
+      mul_le_mul_of_nonneg_right hbasePower hcap0
+    _ ≤ wholeComputed * ((BONE : ℝ) - 3725) :=
+      mul_le_mul_of_nonneg_right hwholeBound hcap0
+    _ ≤ wholeComputed * computedFractional :=
+      mul_le_mul_of_nonneg_left hfractionalLower hwhole0
+    _ ≤ computedPower := hcomposedUpper
+
+/--
+If the caller's post-calculation maximum-input guard succeeds, the coarse
+`c_pow` lower bound forces the rounded supply base into the proven band.
+-/
+theorem successful_single_sided_deposit_implies_base_upper
+    {inputBalance scale feeMultiplier computedBase computedPower output : ℝ}
+    (hinputBalance : 0 < inputBalance) (hscale : 0 < scale)
+    (hfeeMultiplier0 : 0 < feeMultiplier) (hfeeMultiplier1 : feeMultiplier ≤ 1)
+    (hpowerLower : computedBase * ((BONE : ℝ) - 3725) ≤ computedPower)
+    (hcomputedInput :
+      inputBalance / scale * (computedPower / (BONE : ℝ) - 1) /
+          feeMultiplier ≤ output)
+    (hmaxInput :
+      output ≤ inputBalance / scale * ((MAX_IN_RATIO : ℝ) / STROOP)) :
+    computedBase ≤ 8 / 5 := by
+  by_contra hnot
+  have hbaseLarge : (8 / 5 : ℝ) < computedBase := lt_of_not_ge hnot
+  have hcap0 : (0 : ℝ) < BONE - 3725 := by norm_num [BONE]
+  have hbaseProduct :
+      (8 / 5 : ℝ) * ((BONE : ℝ) - 3725) <
+        computedBase * ((BONE : ℝ) - 3725) :=
+    mul_lt_mul_of_pos_right hbaseLarge hcap0
+  have hnumeric :
+      (3 / 2 : ℝ) * BONE < (8 / 5 : ℝ) * ((BONE : ℝ) - 3725) := by
+    norm_num [BONE]
+  have hpower : (3 / 2 : ℝ) * BONE < computedPower :=
+    lt_of_lt_of_le (lt_trans hnumeric hbaseProduct) hpowerLower
+  have hB : (0 : ℝ) < BONE := by norm_num [BONE]
+  have hgrowth : (1 / 2 : ℝ) < computedPower / (BONE : ℝ) - 1 := by
+    apply (lt_sub_iff_add_lt).2
+    apply (lt_div_iff₀ hB).2
+    nlinarith
+  have hnative0 : 0 < inputBalance / scale := div_pos hinputBalance hscale
+  have hrawInput0 :
+      0 ≤ inputBalance / scale * (computedPower / (BONE : ℝ) - 1) :=
+    mul_nonneg hnative0.le (le_trans (by norm_num) hgrowth.le)
+  have hfeeDirection :
+      inputBalance / scale * (computedPower / (BONE : ℝ) - 1) ≤
+        inputBalance / scale * (computedPower / (BONE : ℝ) - 1) /
+          feeMultiplier := by
+    apply (le_div_iff₀ hfeeMultiplier0).2
+    nlinarith
+  have hlower : inputBalance / scale * (1 / 2 : ℝ) < output := by
+    have hscaledGrowth := mul_lt_mul_of_pos_left hgrowth hnative0
+    exact lt_of_lt_of_le hscaledGrowth (le_trans hfeeDirection hcomputedInput)
+  have hratioHalf : (MAX_IN_RATIO : ℝ) / STROOP < 1 / 2 := by
+    norm_num [MAX_IN_RATIO, STROOP]
+  have hupper : output < inputBalance / scale * (1 / 2 : ℝ) := by
+    exact lt_of_le_of_lt hmaxInput (mul_lt_mul_of_pos_left hratioHalf hnative0)
+  linarith
+
 /-- Full later-term baseline `c_pow` bound for the exact-LP-output deposit. -/
 theorem baseline_single_sided_deposit_cpow_later_adverse_error_lt_five_percent_min_fee
     (coefficientProduct multiplied computedTerm : ℕ → ℤ)
@@ -1105,7 +1327,7 @@ theorem baseline_single_sided_deposit_second_term_adverse_error_lt_five_percent_
       computedBase computedExponent a wholeComputed computedPower feeMultiplier
       scale : ℝ}
     {computedBaseRaw computedExponentRaw firstRounded computedPowerRaw
-      newBalance tokenAmountAfterFee result output : ℤ}
+      newBalance tokenAmountAfterFee result output maxInput : ℤ}
     (hpoolSupply : 0 < poolSupply) (hpoolAmountOut : 0 < poolAmountOut)
     (hnominal : nominalRatio = poolAmountOut / poolSupply)
     (hinputBalance : 0 < inputBalance)
@@ -1117,7 +1339,6 @@ theorem baseline_single_sided_deposit_second_term_adverse_error_lt_five_percent_
     (hcomputedBase : computedBase = (computedBaseRaw : ℝ) / BONE)
     (hbaseCeil :
       IsCeil computedBaseRaw ((BONE : ℝ) * (1 + nominalRatio)))
-    (hbaseUpper : computedBase ≤ 8 / 5)
     (hcomputedExponent :
       computedExponent = (computedExponentRaw : ℝ) / BONE)
     (hexponentCeil :
@@ -1141,13 +1362,52 @@ theorem baseline_single_sided_deposit_second_term_adverse_error_lt_five_percent_
       (tokenAmountAfterFee : ℝ) = (newBalance : ℝ) - inputBalance)
     (hfeeCeil :
       IsCeil result ((tokenAmountAfterFee : ℝ) / feeMultiplier))
-    (hdownscaleCeil : IsCeil output ((result : ℝ) / scale)) :
+    (hdownscaleCeil : IsCeil output ((result : ℝ) / scale))
+    (hmaxInputFloor :
+      IsFloor maxInput
+        (inputBalance / scale * ((MAX_IN_RATIO : ℝ) / STROOP)))
+    (hmaxInputGuard : output ≤ maxInput) :
     singleSidedDepositIdealInput
           (inputBalance / scale) weight feeRate nominalRatio - (output : ℝ) <
       singleSidedDepositAdjustedMinimumFeeInputValue
         (inputBalance / scale) weight feeRate nominalRatio / 20 := by
   have hratio0 : 0 ≤ nominalRatio := by rw [hnominal]; positivity
   have hratioPositive : 0 < nominalRatio := by rw [hnominal]; positivity
+  have hbase := single_sided_deposit_base_ceil_refines
+    hratio0 hcomputedBase hbaseCeil
+  have hexponent := single_sided_deposit_exponent_ceil_refines
+    hcomputedExponent hexponentCeil
+  have hintegerPartOne := single_sided_deposit_fractional_integer_part_positive
+    hweight0 hweightUpper hexponent.1 ha1 hcomputedExponentSplit
+  have hfirstRounded0 : (0 : ℝ) ≤ firstRounded := by
+    have hprecision0 : (0 : ℝ) ≤ CPOW_PRECISION := by positivity
+    linarith
+  have hfractionalLower :
+      (BONE : ℝ) - 3725 ≤ (BONE : ℝ) + (firstRounded : ℝ) := by
+    linarith
+  have hcomposedUpper :
+      wholeComputed * ((BONE : ℝ) + (firstRounded : ℝ)) ≤ computedPower := by
+    rw [hcomputedPower]
+    exact hcomposedCeil.le
+  have hpowerLower := single_sided_deposit_composed_power_lower
+    hbase.2 hintegerPartOne hfractionalLower hwholeTrace hcomposedUpper
+  have hfeeMultiplier0 : 0 < feeMultiplier := by
+    rw [hfeeMultiplier]
+    exact single_sided_deposit_fee_denominator_positive
+      hweight0.le hweight1.le hfee0 hfee1
+  have hfeeMultiplier1 : feeMultiplier ≤ 1 := by
+    rw [hfeeMultiplier, singleSidedWithdrawalFeeRate]
+    have hweighted0 : 0 ≤ (1 - weight) * feeRate :=
+      mul_nonneg (sub_nonneg.mpr hweight1.le) hfee0
+    linarith
+  have hcomputedInput := single_sided_deposit_input_ceil_chain
+    hfeeMultiplier0 hscale hnewBalanceCeil htokenAmount hfeeCeil hdownscaleCeil
+  have hmaxInputGuardReal : (output : ℝ) ≤ (maxInput : ℝ) := by
+    exact_mod_cast hmaxInputGuard
+  have hmaxInput := le_trans hmaxInputGuardReal hmaxInputFloor.le
+  have hbaseUpper := successful_single_sided_deposit_implies_base_upper
+    hinputBalance hscale hfeeMultiplier0 hfeeMultiplier1 hpowerLower
+      hcomputedInput hmaxInput
   have hcpow :=
     baseline_single_sided_deposit_cpow_second_term_adverse_error_lt_five_percent_min_fee
       hweight0 hweightLower hweightUpper hratio0 hratioPositive hcomputedBase
@@ -1168,7 +1428,7 @@ theorem baseline_single_sided_deposit_later_adverse_error_lt_five_percent_min_fe
       computedBase computedExponent a computedFractional wholeComputed
       computedPower feeMultiplier scale : ℝ}
     {computedBaseRaw computedExponentRaw computedPowerRaw newBalance
-      tokenAmountAfterFee result output : ℤ}
+      tokenAmountAfterFee result output maxInput : ℤ}
     (hpoolSupply : 0 < poolSupply) (hpoolAmountOut : 0 < poolAmountOut)
     (hnominal : nominalRatio = poolAmountOut / poolSupply)
     (hinputBalance : 0 < inputBalance)
@@ -1180,7 +1440,7 @@ theorem baseline_single_sided_deposit_later_adverse_error_lt_five_percent_min_fe
     (hcomputedBase : computedBase = (computedBaseRaw : ℝ) / BONE)
     (hbaseCeil :
       IsCeil computedBaseRaw ((BONE : ℝ) * (1 + nominalRatio)))
-    (hbaseUpper : computedBase ≤ 8 / 5)
+    (hbaseTwo : computedBase < 2)
     (hcomputedExponent :
       computedExponent = (computedExponentRaw : ℝ) / BONE)
     (hexponentCeil :
@@ -1188,6 +1448,7 @@ theorem baseline_single_sided_deposit_later_adverse_error_lt_five_percent_min_fe
     (ha0 : 0 ≤ a) (ha1 : a ≤ 1)
     (hcomputedExponentSplit : computedExponent = (integerPart : ℝ) + a)
     (hn3 : 3 ≤ n)
+    (hn50 : n ≤ 50)
     (hdegreeOdd : degree = 2 * oddIndex + 1)
     (hdegreeStop : degree = n ∨ degree + 1 = n)
     (hcontinued : ∀ k, 1 ≤ k → k < n →
@@ -1220,13 +1481,59 @@ theorem baseline_single_sided_deposit_later_adverse_error_lt_five_percent_min_fe
       (tokenAmountAfterFee : ℝ) = (newBalance : ℝ) - inputBalance)
     (hfeeCeil :
       IsCeil result ((tokenAmountAfterFee : ℝ) / feeMultiplier))
-    (hdownscaleCeil : IsCeil output ((result : ℝ) / scale)) :
+    (hdownscaleCeil : IsCeil output ((result : ℝ) / scale))
+    (hmaxInputFloor :
+      IsFloor maxInput
+        (inputBalance / scale * ((MAX_IN_RATIO : ℝ) / STROOP)))
+    (hmaxInputGuard : output ≤ maxInput) :
     singleSidedDepositIdealInput
           (inputBalance / scale) weight feeRate nominalRatio - (output : ℝ) <
       singleSidedDepositAdjustedMinimumFeeInputValue
         (inputBalance / scale) weight feeRate nominalRatio / 20 := by
   have hratio0 : 0 ≤ nominalRatio := by rw [hnominal]; positivity
   have hratioPositive : 0 < nominalRatio := by rw [hnominal]; positivity
+  have hbase := single_sided_deposit_base_ceil_refines
+    hratio0 hcomputedBase hbaseCeil
+  have hbaseStrict : 1 < computedBase := by
+    have hidealStrict : 1 < singleSidedDepositIdealBase nominalRatio := by
+      rw [singleSidedDepositIdealBase]
+      linarith
+    exact lt_of_lt_of_le hidealStrict hbase.1
+  have hexponent := single_sided_deposit_exponent_ceil_refines
+    hcomputedExponent hexponentCeil
+  have hintegerPartOne := single_sided_deposit_fractional_integer_part_positive
+    hweight0 hweightUpper hexponent.1 ha1 hcomputedExponentSplit
+  have hdegree50 : degree ≤ 50 := by
+    rcases hdegreeStop with h | h <;> omega
+  have hfractionalLowerStrict :=
+    single_sided_deposit_later_fractional_gt_bone_sub_cap
+      coefficientProduct multiplied computedTerm ha0 ha1 hbaseStrict hbaseTwo
+        hdegreeOdd hdegree50 hfirstFloor hcoefficientFloor hmultiplyTermFloor
+        hdivideTermFloor hcomputedFractional
+  have hfractionalLower :
+      (BONE : ℝ) - 3725 ≤ computedFractional := hfractionalLowerStrict.le
+  have hcomposedUpper : wholeComputed * computedFractional ≤ computedPower := by
+    rw [hcomputedPower]
+    exact hcomposedCeil.le
+  have hpowerLower := single_sided_deposit_composed_power_lower
+    hbase.2 hintegerPartOne hfractionalLower hwholeTrace hcomposedUpper
+  have hfeeMultiplier0 : 0 < feeMultiplier := by
+    rw [hfeeMultiplier]
+    exact single_sided_deposit_fee_denominator_positive
+      hweight0.le hweight1.le hfee0 hfee1
+  have hfeeMultiplier1 : feeMultiplier ≤ 1 := by
+    rw [hfeeMultiplier, singleSidedWithdrawalFeeRate]
+    have hweighted0 : 0 ≤ (1 - weight) * feeRate :=
+      mul_nonneg (sub_nonneg.mpr hweight1.le) hfee0
+    linarith
+  have hcomputedInput := single_sided_deposit_input_ceil_chain
+    hfeeMultiplier0 hscale hnewBalanceCeil htokenAmount hfeeCeil hdownscaleCeil
+  have hmaxInputGuardReal : (output : ℝ) ≤ (maxInput : ℝ) := by
+    exact_mod_cast hmaxInputGuard
+  have hmaxInput := le_trans hmaxInputGuardReal hmaxInputFloor.le
+  have hbaseUpper := successful_single_sided_deposit_implies_base_upper
+    hinputBalance hscale hfeeMultiplier0 hfeeMultiplier1 hpowerLower
+      hcomputedInput hmaxInput
   have hcpow :=
     baseline_single_sided_deposit_cpow_later_adverse_error_lt_five_percent_min_fee
       coefficientProduct multiplied computedTerm hweight0 hweightLower
