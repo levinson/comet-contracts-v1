@@ -9,5 +9,7 @@ import CometCPow.PoolConfig
 import CometCPow.OperatingBand
 import CometCPow.BaselineFeeBound
 import CometCPow.BinomialUpper
+import CometCPow.BinomialAboveUpper
 import CometCPow.OperationFeeBound
 import CometCPow.ExactInputSwap
+import CometCPow.ExactOutputSwap
