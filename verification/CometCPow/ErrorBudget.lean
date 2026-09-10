@@ -93,6 +93,65 @@ theorem sum_error_budget (N : ℕ) :
       push_cast
       ring
 
+/--
+Pointwise `3k - 2` term-error bounds imply the corresponding strict bound on
+the accumulated finite sum. This is the bridge from the recurrence induction
+to the partial sum consumed by the adverse-error theorem.
+-/
+theorem partial_sum_error_lt_sum_error_budget
+    (exactTerm computedTerm : ℕ → ℝ) {N : ℕ}
+    (hN : 1 ≤ N)
+    (hterm : ∀ k, 1 ≤ k → k ≤ N →
+      |exactTerm k - computedTerm k| < 3 * (k : ℝ) - 2) :
+    |(∑ k ∈ Finset.range N, exactTerm (k + 1)) -
+        (∑ k ∈ Finset.range N, computedTerm (k + 1))| <
+      (3 * (N : ℝ) ^ 2 - N) / 2 := by
+  have hrange : (Finset.range N).Nonempty := by
+    refine ⟨0, Finset.mem_range.mpr ?_⟩
+    omega
+  have hpointwise : ∀ k ∈ Finset.range N,
+      |exactTerm (k + 1) - computedTerm (k + 1)| <
+        3 * (((k + 1 : ℕ) : ℝ)) - 2 := by
+    intro k hk
+    apply hterm (k + 1)
+    · omega
+    · exact Nat.succ_le_iff.mpr (Finset.mem_range.mp hk)
+  calc
+    |(∑ k ∈ Finset.range N, exactTerm (k + 1)) -
+          (∑ k ∈ Finset.range N, computedTerm (k + 1))| =
+        |∑ k ∈ Finset.range N,
+          (exactTerm (k + 1) - computedTerm (k + 1))| := by
+            rw [Finset.sum_sub_distrib]
+    _ ≤ ∑ k ∈ Finset.range N,
+          |exactTerm (k + 1) - computedTerm (k + 1)| :=
+      Finset.abs_sum_le_sum_abs _ _
+    _ < ∑ k ∈ Finset.range N,
+          (3 * (((k + 1 : ℕ) : ℝ)) - 2) :=
+      Finset.sum_lt_sum_of_nonempty hrange hpointwise
+    _ = (3 * (N : ℝ) ^ 2 - N) / 2 := sum_error_budget N
+
+/--
+The raw recurrence inequality discharges both the pointwise term budget and
+the accumulated finite-sum budget used by the baseline `c_pow` proof.
+-/
+theorem recurrence_implies_partial_sum_error_budget
+    (S : ℝ) (exactTerm computedTerm : ℕ → ℝ) {N : ℕ}
+    (hS : 148 < S)
+    (hbase : |exactTerm 1 - computedTerm 1| < 1)
+    (hrec : ∀ n, 1 ≤ n → n < 50 →
+      |exactTerm (n + 1) - computedTerm (n + 1)| <
+        (1 + 1 / (((n + 1 : ℕ) : ℝ) * S)) *
+            |exactTerm n - computedTerm n| +
+          1 / ((n + 1 : ℕ) : ℝ) + 1 / ((n + 1 : ℕ) : ℝ) + 1)
+    (hN1 : 1 ≤ N) (hN50 : N ≤ 50) :
+    |(∑ k ∈ Finset.range N, exactTerm (k + 1)) -
+        (∑ k ∈ Finset.range N, computedTerm (k + 1))| <
+      (3 * (N : ℝ) ^ 2 - N) / 2 := by
+  have hterm := recurrence_error_budget S
+    (fun k ↦ |exactTerm k - computedTerm k|) hS hbase hrec
+  exact partial_sum_error_lt_sum_error_budget exactTerm computedTerm hN1
+    (fun k hk1 hkN ↦ hterm k hk1 (le_trans hkN hN50))
+
 /-- In the common `0 ≤ q ≤ 1/2` case, the geometric-tail factor is in `[0, 1]`. -/
 theorem geometric_factor_bounds {q : ℝ} (hq0 : 0 ≤ q) (hq : q ≤ 1 / 2) :
     0 ≤ q / (1 - q) ∧ q / (1 - q) ≤ 1 := by

@@ -1,9 +1,13 @@
 import CometCPow.FixedPoint
 import CometCPow.ErrorBudget
+import CometCPow.BaselineRecurrence
+import CometCPow.CPowiUpper
 import CometCPow.Composition
 import CometCPow.Constants
 import CometCPow.I256Bounds
 import CometCPow.PoolConfig
 import CometCPow.OperatingBand
 import CometCPow.BaselineFeeBound
+import CometCPow.BinomialUpper
 import CometCPow.OperationFeeBound
+import CometCPow.ExactInputSwap

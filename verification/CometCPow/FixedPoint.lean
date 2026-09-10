@@ -46,4 +46,30 @@ theorem normalized_ceil_lt_exact_add_inv_scale
       field_simp
       ring
 
+/-- Normalizing a raw mathematical floor preserves its lower-bound direction. -/
+theorem IsFloor.normalized_le
+    {rounded : ℤ} {exact scale : ℝ}
+    (h : IsFloor rounded (scale * exact)) (hscale : 0 < scale) :
+    (rounded : ℝ) / scale ≤ exact := by
+  apply (div_le_iff₀ hscale).2
+  simpa [mul_comm] using h.le
+
+/-- Normalizing a raw mathematical ceiling preserves its upper-bound direction. -/
+theorem IsCeil.le_normalized
+    {rounded : ℤ} {exact scale : ℝ}
+    (h : IsCeil rounded (scale * exact)) (hscale : 0 < scale) :
+    exact ≤ (rounded : ℝ) / scale := by
+  apply (le_div_iff₀ hscale).2
+  simpa [mul_comm] using h.le
+
+/-- A ceiling of a value below an integer upper bound cannot exceed that bound. -/
+theorem IsCeil.le_integer_upper
+    {rounded upper : ℤ} {exact : ℝ}
+    (h : IsCeil rounded exact) (hexactUpper : exact ≤ (upper : ℝ)) :
+    rounded ≤ upper := by
+  by_contra hnot
+  have hlower : upper + 1 ≤ rounded := by omega
+  have hlowerReal : (upper : ℝ) + 1 ≤ (rounded : ℝ) := by exact_mod_cast hlower
+  linarith [h.add_one_lt]
+
 end CometCPow
