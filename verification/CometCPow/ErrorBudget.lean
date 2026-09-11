@@ -46,19 +46,23 @@ theorem linear_error_budget (D : ℕ → ℝ)
             push_cast at hi hs ⊢
             nlinarith
 
-/-- The raw recurrence inequality implies the implementation's `3k - 2` budget. -/
-theorem recurrence_error_budget (S : ℝ) (D : ℕ → ℝ)
+/--
+The raw recurrence inequality implies the implementation's `3k - 2` budget
+through any stopping index no larger than the production cap.
+-/
+theorem recurrence_error_budget_until (S : ℝ) (D : ℕ → ℝ) {N : ℕ}
+    (hN50 : N ≤ 50)
     (hS : 148 < S)
     (hbase : D 1 < 1)
-    (hrec : ∀ n, 1 ≤ n → n < 50 →
+    (hrec : ∀ n, 1 ≤ n → n < N →
       D (n + 1) <
         (1 + 1 / (((n + 1 : ℕ) : ℝ) * S)) * D n +
           1 / ((n + 1 : ℕ) : ℝ) + 1 / ((n + 1 : ℕ) : ℝ) + 1) :
-    ∀ n, 1 ≤ n → n ≤ 50 → D n < 3 * (n : ℝ) - 2 := by
+    ∀ n, 1 ≤ n → n ≤ N → D n < 3 * (n : ℝ) - 2 := by
   intro n
   induction n using Nat.strong_induction_on with
   | h n ih =>
-      intro hn h50
+      intro hn hN
       cases n with
       | zero => omega
       | succ m =>
@@ -67,19 +71,31 @@ theorem recurrence_error_budget (S : ℝ) (D : ℕ → ℝ)
             norm_num
             exact hbase
           · have hm1 : 1 ≤ m := Nat.one_le_iff_ne_zero.mpr hm
-            have hm50 : m ≤ 50 := le_trans (Nat.le_succ m) h50
-            have hmlt : m < 50 := Nat.lt_of_succ_le h50
-            have hi := ih m (Nat.lt_succ_self m) hm1 hm50
-            have hmReal : (m : ℝ) < 50 := by exact_mod_cast hmlt
+            have hmN : m ≤ N := le_trans (Nat.le_succ m) hN
+            have hmltN : m < N := Nat.lt_of_succ_le hN
+            have hmlt50 : m < 50 := lt_of_lt_of_le hmltN hN50
+            have hi := ih m (Nat.lt_succ_self m) hm1 hmN
+            have hmReal : (m : ℝ) < 50 := by exact_mod_cast hmlt50
             have hDmS : D m < S := by nlinarith
             have hk : (2 : ℝ) ≤ ((m + 1 : ℕ) : ℝ) := by
               exact_mod_cast Nat.succ_le_succ hm1
-            have hraw := hrec m hm1 hmlt
+            have hraw := hrec m hm1 hmltN
             have hincrement := recurrence_increment_lt_three
               (S := S) (D := D m) (k := ((m + 1 : ℕ) : ℝ)) (by nlinarith) hDmS hk
             have hstep : D (m + 1) < D m + 3 := lt_trans hraw hincrement
             push_cast at hi hstep ⊢
             nlinarith
+
+/-- The cap-specialized form retained for callers that construct all 50 steps. -/
+theorem recurrence_error_budget (S : ℝ) (D : ℕ → ℝ)
+    (hS : 148 < S)
+    (hbase : D 1 < 1)
+    (hrec : ∀ n, 1 ≤ n → n < 50 →
+      D (n + 1) <
+        (1 + 1 / (((n + 1 : ℕ) : ℝ) * S)) * D n +
+          1 / ((n + 1 : ℕ) : ℝ) + 1 / ((n + 1 : ℕ) : ℝ) + 1) :
+    ∀ n, 1 ≤ n → n ≤ 50 → D n < 3 * (n : ℝ) - 2 :=
+  recurrence_error_budget_until S D (N := 50) (by rfl) hS hbase hrec
 
 /-- Closed form for the sum of the per-term budgets `3k - 2`, for `k = 1..N`. -/
 theorem sum_error_budget (N : ℕ) :
@@ -151,6 +167,28 @@ theorem recurrence_implies_partial_sum_error_budget
     (fun k ↦ |exactTerm k - computedTerm k|) hS hbase hrec
   exact partial_sum_error_lt_sum_error_budget exactTerm computedTerm hN1
     (fun k hk1 hkN ↦ hterm k hk1 (le_trans hkN hN50))
+
+/--
+The partial-sum budget using only recurrence steps that production executed
+before its stopping index.
+-/
+theorem recurrence_implies_partial_sum_error_budget_until
+    (S : ℝ) (exactTerm computedTerm : ℕ → ℝ) {N : ℕ}
+    (hN1 : 1 ≤ N) (hN50 : N ≤ 50)
+    (hS : 148 < S)
+    (hbase : |exactTerm 1 - computedTerm 1| < 1)
+    (hrec : ∀ n, 1 ≤ n → n < N →
+      |exactTerm (n + 1) - computedTerm (n + 1)| <
+        (1 + 1 / (((n + 1 : ℕ) : ℝ) * S)) *
+            |exactTerm n - computedTerm n| +
+          1 / ((n + 1 : ℕ) : ℝ) + 1 / ((n + 1 : ℕ) : ℝ) + 1) :
+    |(∑ k ∈ Finset.range N, exactTerm (k + 1)) -
+        (∑ k ∈ Finset.range N, computedTerm (k + 1))| <
+      (3 * (N : ℝ) ^ 2 - N) / 2 := by
+  have hterm := recurrence_error_budget_until S
+    (fun k ↦ |exactTerm k - computedTerm k|) hN50 hS hbase hrec
+  exact partial_sum_error_lt_sum_error_budget exactTerm computedTerm hN1
+    (fun k hk1 hkN ↦ hterm k hk1 hkN)
 
 /-- In the common `0 ≤ q ≤ 1/2` case, the geometric-tail factor is in `[0, 1]`. -/
 theorem geometric_factor_bounds {q : ℝ} (hq0 : 0 ≤ q) (hq : q ≤ 1 / 2) :

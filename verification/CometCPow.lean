@@ -13,6 +13,7 @@ import CometCPow.BinomialBelowLower
 import CometCPow.BinomialAboveUpper
 import CometCPow.OperationFeeBound
 import CometCPow.ExactInputSwap
+import CometCPow.ExactInputSwapSource
 import CometCPow.ExactOutputSwap
 import CometCPow.SingleSidedWithdrawal
 import CometCPow.SingleSidedDeposit
