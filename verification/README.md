@@ -23,9 +23,10 @@ Then run the proofs with:
 
 ```sh
 cd verification
-lake update
 lake build
 ```
+
+The checked-in `lake-manifest.json` pins the complete dependency graph, so routine local builds should not run a bare `lake update`; that command refreshes every Git dependency and can fetch substantial Mathlib history. After intentionally changing one dependency pin in `lakefile.toml`, run `lake update <package-name>` once, commit the resulting manifest, and return to `lake build` for normal development.
 
 The project pins Lean and mathlib to version 4.19.0. The
 `c_pow formal verification` workflow first rejects a stale generated constants

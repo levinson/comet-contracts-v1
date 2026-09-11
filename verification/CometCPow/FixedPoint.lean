@@ -1,36 +1,26 @@
-import Mathlib
+import SorobanFixedPointMath.Rounding
 
 namespace CometCPow
 
-/-- The two inequalities required from a mathematically exact floor operation. -/
-structure IsFloor (rounded : ℤ) (exact : ℝ) : Prop where
-  le : (rounded : ℝ) ≤ exact
-  lt_add_one : exact < rounded + 1
+/-- Canonical floor relation supplied by the fixed-point implementation proof. -/
+abbrev IsFloor := SorobanFixedPointMath.IsFloor
 
-/-- The two inequalities required from a mathematically exact ceiling operation. -/
-structure IsCeil (rounded : ℤ) (exact : ℝ) : Prop where
-  le : exact ≤ (rounded : ℝ)
-  add_one_lt : rounded - 1 < exact
+/-- Canonical ceiling relation supplied by the fixed-point implementation proof. -/
+abbrev IsCeil := SorobanFixedPointMath.IsCeil
 
-theorem IsFloor.abs_error_lt_one {rounded : ℤ} {exact : ℝ}
-    (h : IsFloor rounded exact) : |exact - rounded| < 1 := by
-  rw [abs_of_nonneg (sub_nonneg.mpr h.le)]
-  linarith [h.lt_add_one]
+abbrev IsFloor.abs_error_lt_one {rounded : ℤ} {exact : ℝ}
+    (h : IsFloor rounded exact) : |exact - rounded| < 1 :=
+  SorobanFixedPointMath.IsFloor.abs_error_lt_one h
 
-theorem IsCeil.abs_error_lt_one {rounded : ℤ} {exact : ℝ}
-    (h : IsCeil rounded exact) : |(rounded : ℝ) - exact| < 1 := by
-  rw [abs_of_nonneg (sub_nonneg.mpr h.le)]
-  linarith [h.add_one_lt]
+abbrev IsCeil.abs_error_lt_one {rounded : ℤ} {exact : ℝ}
+    (h : IsCeil rounded exact) : |(rounded : ℝ) - exact| < 1 :=
+  SorobanFixedPointMath.IsCeil.abs_error_lt_one h
 
-theorem floor_isFloor (x : ℝ) : IsFloor ⌊x⌋ x := by
-  constructor
-  · exact Int.floor_le x
-  · exact Int.lt_floor_add_one x
+abbrev floor_isFloor (x : ℝ) : IsFloor ⌊x⌋ x :=
+  SorobanFixedPointMath.floor_isFloor x
 
-theorem ceil_isCeil (x : ℝ) : IsCeil ⌈x⌉ x := by
-  constructor
-  · exact Int.le_ceil x
-  · linarith [Int.ceil_lt_add_one x]
+abbrev ceil_isCeil (x : ℝ) : IsCeil ⌈x⌉ x :=
+  SorobanFixedPointMath.ceil_isCeil x
 
 /-- Dividing an exact ceiling by a positive scale adds less than one scaled unit. -/
 theorem normalized_ceil_lt_exact_add_inv_scale
