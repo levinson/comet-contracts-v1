@@ -3,9 +3,15 @@ on:
   push: 
     tags:
       - 'v*'  # triggered whenever a new tag (previxed with "v") is pushed to the repository
+
+permissions:
+  id-token: write
+  contents: write
+  attestations: write
+
 jobs:
-  release-contract-governor:
-    uses: stellar-expert/soroban-build-workflow/.github/workflows/release.yml@main
+  release-contract-factory:
+    uses: stellar-expert/soroban-build-workflow/.github/workflows/release.yml@v25.1.0
     with:
       release_name: ${{ github.ref_name }}
       release_description: 'Comet Factory Release'
@@ -13,8 +19,8 @@ jobs:
     secrets:
       release_token: ${{ secrets.GITHUB_TOKEN }}
 
-  release-contract-votes:
-    uses: stellar-expert/soroban-build-workflow/.github/workflows/release.yml@main
+  release-contract-pool:
+    uses: stellar-expert/soroban-build-workflow/.github/workflows/release.yml@v25.1.0
     with:
       release_name: ${{ github.ref_name }}
       release_description: 'Comet Pool Release'
