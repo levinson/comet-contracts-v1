@@ -1064,9 +1064,9 @@ theorem calcLpTokenAmountGivenTokenDepositsInExecution_refines
 
 /-
 Every successful source-shaped exact-token-input deposit has pool-adverse
-error strictly below five percent of the weighted minimum-fee spot value.
+error strictly below `1.223%` of the weighted minimum-fee spot value.
 -/
-theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_five_percent_min_fee
+theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_precise_fee_share
     {inputBalance inputScalar inputAmount poolSupply inputWeight fee : ℕ}
     {result : SingleSidedTokenDepositExecutionResult}
     (hinputBalance : 0 < inputBalance) (hinputScalar : 0 < inputScalar)
@@ -1078,12 +1078,13 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
     (hexec : calcLpTokenAmountGivenTokenDepositsInExecution inputBalance
       inputScalar inputAmount poolSupply inputWeight fee = some result) :
     (result.output : ℝ) -
-        singleSidedTokenDepositIdealOutput (poolSupply : ℝ)
+      singleSidedTokenDepositIdealOutput (poolSupply : ℝ)
           ((inputWeight : ℝ) / STROOP) ((fee : ℝ) / STROOP)
           ((inputAmount : ℝ) / inputBalance) <
-      singleSidedTokenDepositMinimumFeeOutputValue (poolSupply : ℝ)
+      SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedTokenDepositMinimumFeeOutputValue (poolSupply : ℝ)
           ((inputWeight : ℝ) / STROOP)
-          ((inputAmount : ℝ) / inputBalance) / 20 := by
+          ((inputAmount : ℝ) / inputBalance) := by
   have href := calcLpTokenAmountGivenTokenDepositsInExecution_refines
     hinputBalance hinputScalar hinputAmount hpoolSupply hweightUpper hfeeUpper hexec
   let inputBalanceRaw : ℝ := result.pre.tokenBalanceRaw
@@ -1178,9 +1179,16 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
       hweightBounds.1 hweightBounds.2
     rw [hnominal]
     positivity
+  have hpreciseFeePositive :
+      0 < SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio := by
+    exact mul_pos (by
+      rw [single_sided_token_deposit_adverse_fee_share_value]
+      norm_num) hminimumFeePositive
   have hcpowBound :
       computedPower - (BONE : ℝ) * computedBase ^ weight <
-        singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+        SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio := by
     cases hcpowCase : result.cpow with
     | integer integerPart wholeRaw =>
         have hcpowExec :
@@ -1232,9 +1240,6 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
               (computedPower := computedPower)
               (by simp [computedBase, hunit, BONE])
               (by simp [hcomputedPower, hpowerUnit])
-          have hshare :
-              0 < singleSidedTokenDepositMinimumFeePowerValue
-                weight nominalRatio / 20 := div_pos hminimumFeePositive (by norm_num)
           linarith
         · have hbaseRawStrict : BONE < result.pre.baseRaw := by omega
           have hbaseStrict : 1 < computedBase := by
@@ -1277,10 +1282,6 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
                       computedPower = (powerRaw : ℝ) := hcomputedPower
                       _ ≤ (approx.partialRaw : ℝ) := hcomposedFloor.le
                       _ = BONE := by rw [hzero.2]; norm_num [BONE])
-              have hshare :
-                  0 < singleSidedTokenDepositMinimumFeePowerValue
-                    weight nominalRatio / 20 :=
-                div_pos hminimumFeePositive (by norm_num)
               linarith
             · have hstopRaw := lowerAboveApproxExecution_final_le_of_lt_fifty
                 happExec (by omega)
@@ -1289,7 +1290,7 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
                     CPOW_PRECISION := by
                 rw [← hnOne]
                 exact_mod_cast hstopRaw
-              exact baseline_single_sided_token_deposit_cpow_first_term_adverse_error_lt_five_percent_min_fee
+              exact baseline_single_sided_token_deposit_cpow_first_term_adverse_error_lt_precise_fee_share
                 (firstRounded :=
                   (exactInputApproxStateAt approx.xRaw remainRaw 1).term)
                 (computedPowerRaw := powerRaw) hweightLowerReal
@@ -1336,10 +1337,6 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
                     rw [hstepAt] at hpartial
                     exact_mod_cast hpartial)
                   hcomputedPower hcomposedFloor
-              have hshare :
-                  0 < singleSidedTokenDepositMinimumFeePowerValue
-                    weight nominalRatio / 20 :=
-                div_pos hminimumFeePositive (by norm_num)
               linarith
             · have hn3 : 3 ≤ approx.iterations := by omega
               obtain ⟨degree, evenIndex, hdegreeEven, hdegreeStop, hpartial⟩ :=
@@ -1401,12 +1398,12 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
                 dsimp [computedTerm, multiplied]
                 rw [hstepAt]
                 simpa [Nat.cast_add, Nat.cast_one] using hstepFacts.2.2.1
-              exact baseline_single_sided_token_deposit_cpow_later_adverse_error_lt_five_percent_min_fee
+              exact baseline_single_sided_token_deposit_cpow_later_adverse_error_lt_precise_fee_share
                 coefficientProduct multiplied computedTerm
                 (n := approx.iterations) (degree := degree) (evenIndex := evenIndex)
                 hweightLowerReal hweightUpperReal
                 hcaller.2.2.2.1 hcaller.2.2.2.2.1
-                hcaller.2.2.2.2.2.1 hn3 hn50 hdegreeEven hdegreeStop
+                hcaller.2.2.2.2.2.1 hnominalUpper hn3 hn50 hdegreeEven hdegreeStop
                 (by
                   intro k hk hkn
                   exact_mod_cast hcontinued k hk hkn)
@@ -1427,8 +1424,9 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
       IsFloor result.output ((result.poolAmountRaw : ℝ) / scale) := by
     convert href.outputFloor using 1
     norm_num [scale, BONE, STROOP]
-  have hresult := single_sided_token_deposit_from_fixed_point_refinements
-    hinputBalanceRaw hnominal href.adjustedInputNonnegative hadjustedRatio
+  have hresult := single_sided_token_deposit_from_fixed_point_refinements_fee_share
+    (feeShare := SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE)
+      hinputBalanceRaw hnominal href.adjustedInputNonnegative hadjustedRatio
       hadjustedFloor hfeeMultiplier hcomputedBase hbaseFloor hweightBounds.1.le
       hcpowBound hpoolSupplyRaw hscale hnewSupplyFloor hpoolAmount houtputFloor
   have hpoolSupplyOriginal : poolSupplyRaw / scale = (poolSupply : ℝ) := by

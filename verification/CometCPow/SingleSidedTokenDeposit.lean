@@ -31,6 +31,28 @@ noncomputable def singleSidedTokenDepositMinimumFeeOutputValue
     (poolSupply weight nominalRatio : ℝ) : ℝ :=
   MIN_FEE_RATE * (poolSupply * weight * (1 - weight) * nominalRatio)
 
+/--
+The certified adverse-error share of the weighted minimum fee. The tightest
+finite later-stop case is iteration 4 with retained degree 4, which requires
+approximately `1.2222228%`; `1.223%` is a simple strict rational ceiling.
+-/
+noncomputable def SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE : ℝ :=
+  1223 / 100000
+
+/-- The certified share expressed as a rate applied to the weighted first term. -/
+noncomputable def SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE : ℝ :=
+  SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE * MIN_FEE_RATE
+
+theorem single_sided_token_deposit_adverse_fee_share_value :
+    SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE = (1223 : ℝ) / 100000 := by
+  rfl
+
+theorem single_sided_token_deposit_adverse_fee_rate_value :
+    SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE =
+      (1223 : ℝ) / 100000000000 := by
+  norm_num [SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE,
+    SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE, MIN_FEE_RATE, MIN_FEE, STROOP]
+
 /-- Flooring the fee-adjusted token amount gives the caller's ratio bound. -/
 theorem single_sided_token_deposit_adjusted_floor_refines_ratio
     {inputBalance inputAmount nominalRatio adjustedRatio feeMultiplier : ℝ}
@@ -117,8 +139,8 @@ theorem single_sided_token_deposit_output_floor_chain
     _ = poolSupply / scale * (computedPower / (BONE : ℝ) - 1) := by ring
 
 /-- Compose a raw `c_pow` bound with the ideal deposit and caller floors. -/
-theorem single_sided_token_deposit_adverse_error_lt_five_percent_min_fee
-    {poolSupply weight feeRate nominalRatio computedBase computedPower
+theorem single_sided_token_deposit_adverse_error_lt_fee_share
+    {feeShare poolSupply weight feeRate nominalRatio computedBase computedPower
       computedOutput : ℝ}
     (hpoolSupply : 0 < poolSupply)
     (hweight0 : 0 ≤ weight)
@@ -127,15 +149,15 @@ theorem single_sided_token_deposit_adverse_error_lt_five_percent_min_fee
       singleSidedTokenDepositIdealBase weight feeRate nominalRatio)
     (hcpow :
       computedPower - (BONE : ℝ) * computedBase ^ weight <
-        singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20)
+        feeShare * singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio)
     (hcomputedOutput :
       computedOutput ≤
         poolSupply * (computedPower / (BONE : ℝ) - 1)) :
     computedOutput -
-        singleSidedTokenDepositIdealOutput
+      singleSidedTokenDepositIdealOutput
           poolSupply weight feeRate nominalRatio <
-      singleSidedTokenDepositMinimumFeeOutputValue
-        poolSupply weight nominalRatio / 20 := by
+      feeShare * singleSidedTokenDepositMinimumFeeOutputValue
+        poolSupply weight nominalRatio := by
   have hB : (0 : ℝ) < BONE := by norm_num [BONE]
   have hpowerDirection := single_sided_token_deposit_rounded_power_below_ideal
     hweight0 hcomputedBase0 hbase
@@ -147,7 +169,7 @@ theorem single_sided_token_deposit_adverse_error_lt_five_percent_min_fee
   have hadversePower :
       computedPower - (BONE : ℝ) *
           singleSidedTokenDepositIdealBase weight feeRate nominalRatio ^ weight <
-        singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+        feeShare * singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio := by
     linarith
   have hcallerScale : 0 < poolSupply / (BONE : ℝ) := div_pos hpoolSupply hB
   have hscaled := mul_lt_mul_of_pos_left hadversePower hcallerScale
@@ -166,18 +188,19 @@ theorem single_sided_token_deposit_adverse_error_lt_five_percent_min_fee
       field_simp [ne_of_gt hB]
       ring
     _ < (poolSupply / (BONE : ℝ)) *
-        (singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20) :=
+        (feeShare *
+          singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio) :=
       hscaled
-    _ = singleSidedTokenDepositMinimumFeeOutputValue
-          poolSupply weight nominalRatio / 20 := by
+    _ = feeShare * singleSidedTokenDepositMinimumFeeOutputValue
+          poolSupply weight nominalRatio := by
       rw [singleSidedTokenDepositMinimumFeePowerValue,
         singleSidedTokenDepositMinimumFeeOutputValue]
       field_simp [ne_of_gt hB]
       ring
 
 /-- Instantiate the operation theorem from the fixed-point caller refinements. -/
-theorem single_sided_token_deposit_from_fixed_point_refinements
-    {inputBalance inputAmount nominalRatio adjustedRatio feeMultiplier
+theorem single_sided_token_deposit_from_fixed_point_refinements_fee_share
+    {feeShare inputBalance inputAmount nominalRatio adjustedRatio feeMultiplier
       computedBase computedPower poolSupply weight feeRate scale : ℝ}
     {adjustedInput computedBaseRaw newPoolSupply poolAmountOut output : ℤ}
     (hinputBalance : 0 < inputBalance)
@@ -193,7 +216,7 @@ theorem single_sided_token_deposit_from_fixed_point_refinements
     (hweight0 : 0 ≤ weight)
     (hcpow :
       computedPower - (BONE : ℝ) * computedBase ^ weight <
-        singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20)
+        feeShare * singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio)
     (hpoolSupply : 0 < poolSupply) (hscale : 0 < scale)
     (hnewSupplyFloor :
       IsFloor newPoolSupply (poolSupply * (computedPower / (BONE : ℝ))))
@@ -201,10 +224,10 @@ theorem single_sided_token_deposit_from_fixed_point_refinements
       (poolAmountOut : ℝ) = (newPoolSupply : ℝ) - poolSupply)
     (hdownscaleFloor : IsFloor output ((poolAmountOut : ℝ) / scale)) :
     (output : ℝ) -
-        singleSidedTokenDepositIdealOutput
+      singleSidedTokenDepositIdealOutput
           (poolSupply / scale) weight feeRate nominalRatio <
-      singleSidedTokenDepositMinimumFeeOutputValue
-        (poolSupply / scale) weight nominalRatio / 20 := by
+      feeShare * singleSidedTokenDepositMinimumFeeOutputValue
+        (poolSupply / scale) weight nominalRatio := by
   have hadjusted0 : 0 ≤ adjustedRatio := by
     rw [hadjustedRatio]
     positivity
@@ -217,7 +240,7 @@ theorem single_sided_token_deposit_from_fixed_point_refinements
     hadjusted hbaseBounds.2
   have houtput := single_sided_token_deposit_output_floor_chain
     hscale hnewSupplyFloor hpoolAmount hdownscaleFloor
-  exact single_sided_token_deposit_adverse_error_lt_five_percent_min_fee
+  exact single_sided_token_deposit_adverse_error_lt_fee_share
     (div_pos hpoolSupply hscale) hweight0 (le_trans (by norm_num) hbaseBounds.1)
       hbaseIdeal hcpow houtput
 
@@ -263,6 +286,81 @@ theorem single_sided_token_deposit_configured_base_bounds
     · rw [abs_of_nonneg (sub_nonneg.mpr hbaseOne)]
       exact le_trans hdisplacement (le_trans hnominalUpper (le_of_lt hmax))
 
+/-- The weighted minimum-fee value dominates the precise weighted first-term rate. -/
+theorem single_sided_token_deposit_precise_fee_value_dominates_weighted_first_term
+    {S weight q nominalRatio firstTerm feeValue : ℝ}
+    (hS0 : 0 ≤ S) (hweight0 : 0 ≤ weight) (hweight1 : weight ≤ 1)
+    (hqNominal : q ≤ nominalRatio)
+    (hfirst : firstTerm = S * weight * q)
+    (hfee :
+      feeValue = MIN_FEE_RATE * (S * weight * (1 - weight) * nominalRatio)) :
+    SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE *
+        ((1 - weight) * firstTerm) ≤
+      SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE * feeValue := by
+  have hfactor0 : 0 ≤ S * weight * (1 - weight) :=
+    mul_nonneg (mul_nonneg hS0 hweight0) (sub_nonneg.mpr hweight1)
+  have hratio :
+      S * weight * (1 - weight) * q ≤
+        S * weight * (1 - weight) * nominalRatio :=
+    mul_le_mul_of_nonneg_left hqNominal hfactor0
+  have hrate0 :
+      0 ≤ SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE * MIN_FEE_RATE := by
+    rw [single_sided_token_deposit_adverse_fee_share_value,
+      minimum_fee_rate_value]
+    norm_num
+  calc
+    SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE *
+          ((1 - weight) * firstTerm) =
+        (SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
+          (S * weight * (1 - weight) * q) := by
+      rw [SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE, hfirst]
+      ring
+    _ ≤ (SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
+          (S * weight * (1 - weight) * nominalRatio) :=
+      mul_le_mul_of_nonneg_left hratio hrate0
+    _ = SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE * feeValue := by
+      rw [hfee]
+      ring
+
+set_option maxHeartbeats 1000000 in
+/--
+The public maximum-input ratio and retained-even-degree control flow bound the
+later accumulated error by `1.223%` of the weighted first-term fee scale.
+-/
+theorem single_sided_token_deposit_later_accumulated_error_lt_precise_fee_rate
+    {n degree evenIndex : ℕ} {weightedFirstTerm : ℝ}
+    (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
+    (hdegreeEven : degree = 2 * evenIndex + 2)
+    (hdegreeStop : degree = n ∨ degree + 1 = n)
+    (hcontinue :
+      (CPOW_PRECISION : ℝ) <
+        weightedFirstTerm *
+            (((MAX_IN_RATIO : ℝ) / STROOP) / 2) *
+            ((MAX_IN_RATIO : ℝ) / STROOP) ^ (n - 3) +
+          (3 * ((n - 1 : ℕ) : ℝ) - 2)) :
+    accumulatedError degree <
+      SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE * weightedFirstTerm := by
+  rcases hdegreeStop with hdegree | hdegree
+  · rw [hdegree] at hdegreeEven ⊢
+    interval_cases n <;>
+      norm_num [accumulatedError,
+        SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE,
+        SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE, MIN_FEE_RATE,
+        MIN_FEE, MAX_IN_RATIO, STROOP, CPOW_PRECISION]
+        at hdegreeEven hcontinue ⊢ <;>
+      (try omega) <;>
+      nlinarith
+  · have hdegreeValue : degree = n - 1 := by omega
+    rw [hdegreeValue] at hdegreeEven ⊢
+    interval_cases n <;>
+      norm_num [accumulatedError,
+        SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE,
+        SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE, MIN_FEE_RATE,
+        MIN_FEE, MAX_IN_RATIO, STROOP, CPOW_PRECISION]
+        at hdegreeEven hcontinue ⊢ <;>
+      (try omega) <;>
+      nlinarith
+
 /-- The exact positive second term magnitude for a direct-weight deposit. -/
 theorem single_sided_token_deposit_second_term
     (weight computedBase : ℝ) :
@@ -273,8 +371,8 @@ theorem single_sided_token_deposit_second_term
   norm_num
   ring
 
-/-- A first stop's omitted second-order scale is below 5% of the minimum fee. -/
-theorem single_sided_token_deposit_first_stop_second_term_lt_fee
+/-- A first stop's omitted second-order scale is below `1.223%` of the minimum fee. -/
+theorem single_sided_token_deposit_first_stop_second_term_lt_precise_fee_share
     {weight q nominalRatio firstExact : ℝ} {firstRounded : ℤ}
     (hweightLower : (MIN_WEIGHT : ℝ) / STROOP ≤ weight)
     (hweightUpper : weight ≤ (MAX_WEIGHT : ℝ) / STROOP)
@@ -283,36 +381,41 @@ theorem single_sided_token_deposit_first_stop_second_term_lt_fee
     (hfirstFloor : IsFloor firstRounded firstExact)
     (hstop : |(firstRounded : ℝ)| ≤ CPOW_PRECISION) :
     (BONE : ℝ) * weight * (1 - weight) * q ^ 2 / 2 <
-      singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio := by
   have hweights := single_sided_token_deposit_configured_weight_bounds
     hweightLower hweightUpper
   have hfirstUpper : firstExact < (CPOW_PRECISION : ℝ) + 1 := by
     have hroundedUpper : (firstRounded : ℝ) ≤ CPOW_PRECISION :=
       le_trans (le_abs_self _) hstop
     linarith [hfirstFloor.lt_add_one]
-  have hqSmall : q < MIN_FEE_RATE / 10 := by
+  have hqHalfRate : q / 2 < SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE := by
     rw [hfirst] at hfirstUpper
-    rw [minimum_fee_rate_value]
+    rw [single_sided_token_deposit_adverse_fee_rate_value]
     norm_num [BONE, CPOW_PRECISION, MIN_WEIGHT, STROOP] at hweightLower hfirstUpper ⊢
     nlinarith [mul_pos hweights.1 hq0]
-  have hnominalPositive : 0 < nominalRatio := lt_of_lt_of_le hq0 hqNominal
-  have hqSquared : q ^ 2 < MIN_FEE_RATE * nominalRatio / 10 := by
-    have hleft := mul_lt_mul_of_pos_left hqSmall hq0
-    have hright := mul_le_mul_of_nonneg_left hqNominal
-      (show 0 ≤ MIN_FEE_RATE / 10 by rw [minimum_fee_rate_value]; norm_num)
+  have hrate0 : 0 ≤ SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE := by
+    rw [single_sided_token_deposit_adverse_fee_rate_value]
+    norm_num
+  have hqSquared :
+      q ^ 2 / 2 <
+        SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE * nominalRatio := by
+    have hleft := mul_lt_mul_of_pos_left hqHalfRate hq0
+    have hright := mul_le_mul_of_nonneg_right hqNominal hrate0
     calc
-      q ^ 2 = q * q := by ring
-      _ < q * (MIN_FEE_RATE / 10) := by simpa [mul_comm] using hleft
-      _ ≤ nominalRatio * (MIN_FEE_RATE / 10) := by simpa [mul_comm] using hright
-      _ = MIN_FEE_RATE * nominalRatio / 10 := by ring
+      q ^ 2 / 2 = q * (q / 2) := by ring
+      _ < q * SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE := hleft
+      _ ≤ nominalRatio * SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE := hright
+      _ = SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE * nominalRatio := by ring
   have hfactor : 0 < (BONE : ℝ) * weight * (1 - weight) :=
     mul_pos (mul_pos (by norm_num [BONE]) hweights.1) (by linarith)
   have hscaled := mul_lt_mul_of_pos_left hqSquared hfactor
+  rw [SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE] at hscaled
   rw [singleSidedTokenDepositMinimumFeePowerValue]
   nlinarith only [hscaled]
 
 /-- The corrected first-term round-down result stays within the weighted fee budget. -/
-theorem baseline_single_sided_token_deposit_cpow_first_term_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_token_deposit_cpow_first_term_adverse_error_lt_precise_fee_share
     {weight nominalRatio computedBase computedFractional computedPower : ℝ}
     {firstRounded computedPowerRaw : ℤ}
     (hweightLower : (MIN_WEIGHT : ℝ) / STROOP ≤ weight)
@@ -327,7 +430,8 @@ theorem baseline_single_sided_token_deposit_cpow_first_term_adverse_error_lt_fiv
     (hcomputedPower : computedPower = (computedPowerRaw : ℝ))
     (hcomposedFloor : IsFloor computedPowerRaw computedFractional) :
     computedPower - (BONE : ℝ) * computedBase ^ weight <
-      singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio := by
   have hweights := single_sided_token_deposit_configured_weight_bounds
     hweightLower hweightUpper
   let T : ℕ → ℝ := exactOutputBinomialTerm weight computedBase
@@ -344,7 +448,8 @@ theorem baseline_single_sided_token_deposit_cpow_first_term_adverse_error_lt_fiv
   have hsecond : T 2 =
       -(BONE : ℝ) * weight * (1 - weight) * (computedBase - 1) ^ 2 / 2 := by
     exact single_sided_token_deposit_second_term weight computedBase
-  have hsecondBudget := single_sided_token_deposit_first_stop_second_term_lt_fee
+  have hsecondBudget :=
+    single_sided_token_deposit_first_stop_second_term_lt_precise_fee_share
     hweightLower hweightUpper (by linarith) hqNominal hfirst hfirstFloor hstop
   have hpowerFloor : computedPower ≤ computedFractional := by
     rw [hcomputedPower]
@@ -476,7 +581,7 @@ preceding even partial. Thus `degree` is even in both later-stop branches.
 -/
 
 /-- Full later-term baseline `c_pow` bound for the direct-weight deposit. -/
-theorem baseline_single_sided_token_deposit_cpow_later_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_token_deposit_cpow_later_adverse_error_lt_precise_fee_share
     (coefficientProduct multiplied computedTerm : ℕ → ℤ)
     {n degree evenIndex : ℕ}
     {weight nominalRatio computedBase computedFractional computedPower : ℝ}
@@ -486,6 +591,7 @@ theorem baseline_single_sided_token_deposit_cpow_later_adverse_error_lt_five_per
     (hbaseOne : 1 ≤ computedBase)
     (hbaseUpper : computedBase ≤ 8 / 5)
     (hqNominal : computedBase - 1 ≤ nominalRatio)
+    (hnominalUpper : nominalRatio ≤ (MAX_IN_RATIO : ℝ) / STROOP)
     (hn3 : 3 ≤ n)
     (hn50 : n ≤ 50)
     (hdegreeEven : degree = 2 * evenIndex + 2)
@@ -511,7 +617,8 @@ theorem baseline_single_sided_token_deposit_cpow_later_adverse_error_lt_five_per
     (hcomputedPower : computedPower = (computedPowerRaw : ℝ))
     (hcomposedFloor : IsFloor computedPowerRaw computedFractional) :
     computedPower - (BONE : ℝ) * computedBase ^ weight <
-      singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio := by
   have hweights := single_sided_token_deposit_configured_weight_bounds
     hweightLower hweightUpper
   let T : ℕ → ℝ := exactOutputBinomialTerm weight computedBase
@@ -649,18 +756,41 @@ theorem baseline_single_sided_token_deposit_cpow_later_adverse_error_lt_five_per
     rw [hexactPartial, hcomputedFractional, accumulatedError]
     convert hsumRaw using 1
     simp [U, Nat.add_comm]
-  have herrorMono := accumulated_error_mono hdegree1 hdegreeN
-  have hsumN : |computedFractional - exactPartial| < accumulatedError n := by
-    rw [abs_sub_comm]
-    exact lt_of_lt_of_le hsumDegree herrorMono
-  have hfractional :=
-    baseline_direct_single_sided_later_adverse_error_lt_five_percent_min_fee
-      T hweights.1.le hweights.2.le hx hrec hn3 hn46 hprevious htermError
-        hfirstMagnitude hqNominal
-        (show singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio =
-            MIN_FEE_RATE *
-              ((BONE : ℝ) * weight * (1 - weight) * nominalRatio) by rfl)
-        hpartialLower hsumN
+  have hrounded : computedFractional - exactPartial < accumulatedError degree := by
+    exact lt_of_le_of_lt (le_abs_self _)
+      (by simpa [abs_sub_comm] using hsumDegree)
+  have hxConfigured :
+      |computedBase - 1| ≤ (MAX_IN_RATIO : ℝ) / STROOP := by
+    rw [abs_of_nonneg hdisplacement0]
+    exact le_trans hqNominal hnominalUpper
+  have hcontinue := continued_loop_forces_weighted_first_term_scale
+    T hweights.1.le hweights.2.le hxConfigured
+      (by norm_num [MAX_IN_RATIO, STROOP]) hrec hn3 hprevious htermError
+  have hbudget :=
+    single_sided_token_deposit_later_accumulated_error_lt_precise_fee_rate
+      (weightedFirstTerm := (1 - weight) * |T 1|)
+      hn3 hn46 hdegreeEven hdegreeStop (by simpa using hcontinue)
+  have hfeeDominates :=
+    single_sided_token_deposit_precise_fee_value_dominates_weighted_first_term
+      (S := (BONE : ℝ)) (weight := weight) (q := computedBase - 1)
+      (nominalRatio := nominalRatio) (firstTerm := |T 1|)
+      (feeValue := singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio)
+      (by norm_num [BONE]) hweights.1.le hweights.2.le hqNominal
+      hfirstMagnitude (by rfl)
+  have hfractional :
+      computedFractional - (BONE : ℝ) * computedBase ^ weight <
+        SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio := by
+    calc
+      computedFractional - (BONE : ℝ) * computedBase ^ weight ≤
+          computedFractional - exactPartial :=
+        sub_le_sub_left hpartialLower computedFractional
+      _ < accumulatedError degree := hrounded
+      _ < SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_RATE *
+          ((1 - weight) * |T 1|) := hbudget
+      _ ≤ SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio :=
+        hfeeDominates
   have hpowerFloor : computedPower ≤ computedFractional := by
     rw [hcomputedPower]
     exact hcomposedFloor.le
@@ -720,7 +850,7 @@ theorem single_sided_token_deposit_minimum_fee_power_value_positive
       hnominal)
 
 /-- Complete unit-base comparison for `dep_tokn_amt_in_get_lp_tokns_out`. -/
-theorem baseline_single_sided_token_deposit_unit_base_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_token_deposit_unit_base_adverse_error_lt_precise_fee_share
     {inputBalance inputAmount nominalRatio adjustedRatio feeMultiplier
       computedBase computedPower poolSupply weight feeRate scale : ℝ}
     {adjustedInput computedBaseRaw newPoolSupply poolAmountOut output : ℤ}
@@ -749,8 +879,9 @@ theorem baseline_single_sided_token_deposit_unit_base_adverse_error_lt_five_perc
     (output : ℝ) -
         singleSidedTokenDepositIdealOutput
           (poolSupply / scale) weight feeRate nominalRatio <
-      singleSidedTokenDepositMinimumFeeOutputValue
-        (poolSupply / scale) weight nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedTokenDepositMinimumFeeOutputValue
+          (poolSupply / scale) weight nominalRatio := by
   have hcaller := single_sided_token_deposit_configured_caller_bounds
     hinputBalance hinputAmount hnominal hnominalUpper hweightLower hweightUpper
       hfee0 hfee1 hfeeMultiplier hadjustedInput0 hadjustedRatio hadjustedFloor
@@ -764,18 +895,23 @@ theorem baseline_single_sided_token_deposit_unit_base_adverse_error_lt_five_perc
     (weight := weight) hunitBase (le_of_eq hcomputedPower)
   have hcpow :
       computedPower - (BONE : ℝ) * computedBase ^ weight <
-        singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+        SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio := by
     have hshare :
-        0 < singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20 :=
-      div_pos hfeePositive (by norm_num)
+        0 < SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio :=
+      mul_pos (by
+        rw [single_sided_token_deposit_adverse_fee_share_value]
+        norm_num) hfeePositive
     linarith
-  exact single_sided_token_deposit_from_fixed_point_refinements
-    hinputBalance hnominal hadjustedInput0 hadjustedRatio hadjustedFloor
+  exact single_sided_token_deposit_from_fixed_point_refinements_fee_share
+    (feeShare := SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE)
+      hinputBalance hnominal hadjustedInput0 hadjustedRatio hadjustedFloor
       hfeeMultiplier hcomputedBase hbaseFloor hweights.1.le hcpow hpoolSupply
       hscale hnewSupplyFloor hpoolAmount hdownscaleFloor
 
 /-- Complete corrected-first-term comparison for the exact-token-input deposit. -/
-theorem baseline_single_sided_token_deposit_first_term_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_token_deposit_first_term_adverse_error_lt_precise_fee_share
     {inputBalance inputAmount nominalRatio adjustedRatio feeMultiplier
       computedBase computedFractional computedPower poolSupply weight feeRate scale : ℝ}
     {adjustedInput computedBaseRaw firstRounded computedPowerRaw newPoolSupply
@@ -811,8 +947,9 @@ theorem baseline_single_sided_token_deposit_first_term_adverse_error_lt_five_per
     (output : ℝ) -
         singleSidedTokenDepositIdealOutput
           (poolSupply / scale) weight feeRate nominalRatio <
-      singleSidedTokenDepositMinimumFeeOutputValue
-        (poolSupply / scale) weight nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedTokenDepositMinimumFeeOutputValue
+          (poolSupply / scale) weight nominalRatio := by
   have hcaller := single_sided_token_deposit_configured_caller_bounds
     hinputBalance hinputAmount hnominal hnominalUpper hweightLower hweightUpper
       hfee0 hfee1 hfeeMultiplier hadjustedInput0 hadjustedRatio hadjustedFloor
@@ -831,16 +968,17 @@ theorem baseline_single_sided_token_deposit_first_term_adverse_error_lt_five_per
       exact_mod_cast hfirstRoundedPositive
     linarith
   have hcpow :=
-    baseline_single_sided_token_deposit_cpow_first_term_adverse_error_lt_five_percent_min_fee
+    baseline_single_sided_token_deposit_cpow_first_term_adverse_error_lt_precise_fee_share
       hweightLower hweightUpper hbaseStrict hcaller.2.2.2.2.2.1 hfirstFloor
         hstop hcomputedFractional hcomputedPower hcomposedFloor
-  exact single_sided_token_deposit_from_fixed_point_refinements
-    hinputBalance hnominal hadjustedInput0 hadjustedRatio hadjustedFloor
+  exact single_sided_token_deposit_from_fixed_point_refinements_fee_share
+    (feeShare := SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE)
+      hinputBalance hnominal hadjustedInput0 hadjustedRatio hadjustedFloor
       hfeeMultiplier hcomputedBase hbaseFloor hweights.1.le hcpow hpoolSupply
       hscale hnewSupplyFloor hpoolAmount hdownscaleFloor
 
 /-- Complete zero-first-term, no-correction comparison for the exact-token-input deposit. -/
-theorem baseline_single_sided_token_deposit_zero_first_term_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_token_deposit_zero_first_term_adverse_error_lt_precise_fee_share
     {inputBalance inputAmount nominalRatio adjustedRatio feeMultiplier
       computedBase computedFractional computedPower poolSupply weight feeRate scale : ℝ}
     {adjustedInput computedBaseRaw firstRounded computedPowerRaw newPoolSupply
@@ -873,8 +1011,9 @@ theorem baseline_single_sided_token_deposit_zero_first_term_adverse_error_lt_fiv
     (output : ℝ) -
         singleSidedTokenDepositIdealOutput
           (poolSupply / scale) weight feeRate nominalRatio <
-      singleSidedTokenDepositMinimumFeeOutputValue
-        (poolSupply / scale) weight nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedTokenDepositMinimumFeeOutputValue
+          (poolSupply / scale) weight nominalRatio := by
   have hcaller := single_sided_token_deposit_configured_caller_bounds
     hinputBalance hinputAmount hnominal hnominalUpper hweightLower hweightUpper
       hfee0 hfee1 hfeeMultiplier hadjustedInput0 hadjustedRatio hadjustedFloor
@@ -892,18 +1031,23 @@ theorem baseline_single_sided_token_deposit_zero_first_term_adverse_error_lt_fiv
     hweights.1 hweights.2 hnominalPositive
   have hcpow :
       computedPower - (BONE : ℝ) * computedBase ^ weight <
-        singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+        SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio := by
     have hshare :
-        0 < singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20 :=
-      div_pos hfeePositive (by norm_num)
+        0 < SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio :=
+      mul_pos (by
+        rw [single_sided_token_deposit_adverse_fee_share_value]
+        norm_num) hfeePositive
     linarith
-  exact single_sided_token_deposit_from_fixed_point_refinements
-    hinputBalance hnominal hadjustedInput0 hadjustedRatio hadjustedFloor
+  exact single_sided_token_deposit_from_fixed_point_refinements_fee_share
+    (feeShare := SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE)
+      hinputBalance hnominal hadjustedInput0 hadjustedRatio hadjustedFloor
       hfeeMultiplier hcomputedBase hbaseFloor hweights.1.le hcpow hpoolSupply
       hscale hnewSupplyFloor hpoolAmount hdownscaleFloor
 
 /-- Complete second-term comparison for the exact-token-input deposit. -/
-theorem baseline_single_sided_token_deposit_second_term_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_token_deposit_second_term_adverse_error_lt_precise_fee_share
     {inputBalance inputAmount nominalRatio adjustedRatio feeMultiplier
       computedBase computedFractional computedPower poolSupply weight feeRate scale : ℝ}
     {adjustedInput computedBaseRaw firstRounded coefficientProduct multiplied
@@ -947,8 +1091,9 @@ theorem baseline_single_sided_token_deposit_second_term_adverse_error_lt_five_pe
     (output : ℝ) -
         singleSidedTokenDepositIdealOutput
           (poolSupply / scale) weight feeRate nominalRatio <
-      singleSidedTokenDepositMinimumFeeOutputValue
-        (poolSupply / scale) weight nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedTokenDepositMinimumFeeOutputValue
+          (poolSupply / scale) weight nominalRatio := by
   have hcaller := single_sided_token_deposit_configured_caller_bounds
     hinputBalance hinputAmount hnominal hnominalUpper hweightLower hweightUpper
       hfee0 hfee1 hfeeMultiplier hadjustedInput0 hadjustedRatio hadjustedFloor
@@ -966,18 +1111,23 @@ theorem baseline_single_sided_token_deposit_second_term_adverse_error_lt_five_pe
     hweights.1 hweights.2 hnominalPositive
   have hcpow :
       computedPower - (BONE : ℝ) * computedBase ^ weight <
-        singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+        SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio := by
     have hshare :
-        0 < singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio / 20 :=
-      div_pos hfeePositive (by norm_num)
+        0 < SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio :=
+      mul_pos (by
+        rw [single_sided_token_deposit_adverse_fee_share_value]
+        norm_num) hfeePositive
     linarith
-  exact single_sided_token_deposit_from_fixed_point_refinements
-    hinputBalance hnominal hadjustedInput0 hadjustedRatio hadjustedFloor
+  exact single_sided_token_deposit_from_fixed_point_refinements_fee_share
+    (feeShare := SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE)
+      hinputBalance hnominal hadjustedInput0 hadjustedRatio hadjustedFloor
       hfeeMultiplier hcomputedBase hbaseFloor hweights.1.le hcpow hpoolSupply
       hscale hnewSupplyFloor hpoolAmount hdownscaleFloor
 
 /-- Complete later-term comparison for the exact-token-input deposit. -/
-theorem baseline_single_sided_token_deposit_later_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_token_deposit_later_adverse_error_lt_precise_fee_share
     (coefficientProduct multiplied computedTerm : ℕ → ℤ)
     {n degree evenIndex : ℕ}
     {inputBalance inputAmount nominalRatio adjustedRatio feeMultiplier
@@ -1031,8 +1181,9 @@ theorem baseline_single_sided_token_deposit_later_adverse_error_lt_five_percent_
     (output : ℝ) -
         singleSidedTokenDepositIdealOutput
           (poolSupply / scale) weight feeRate nominalRatio <
-      singleSidedTokenDepositMinimumFeeOutputValue
-        (poolSupply / scale) weight nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedTokenDepositMinimumFeeOutputValue
+          (poolSupply / scale) weight nominalRatio := by
   have hcaller := single_sided_token_deposit_configured_caller_bounds
     hinputBalance hinputAmount hnominal hnominalUpper hweightLower hweightUpper
       hfee0 hfee1 hfeeMultiplier hadjustedInput0 hadjustedRatio hadjustedFloor
@@ -1040,14 +1191,15 @@ theorem baseline_single_sided_token_deposit_later_adverse_error_lt_five_percent_
   have hweights := single_sided_token_deposit_configured_weight_bounds
     hweightLower hweightUpper
   have hcpow :=
-    baseline_single_sided_token_deposit_cpow_later_adverse_error_lt_five_percent_min_fee
+    baseline_single_sided_token_deposit_cpow_later_adverse_error_lt_precise_fee_share
       coefficientProduct multiplied computedTerm hweightLower hweightUpper
-        hcaller.2.2.2.1 hcaller.2.2.2.2.1 hcaller.2.2.2.2.2.1 hn3 hn50
-        hdegreeEven hdegreeStop hcontinued hfirstFloor hcoefficientFloor
-        hmultiplyTermFloor hdivideTermFloor hcomputedFractional hcomputedPower
-        hcomposedFloor
-  exact single_sided_token_deposit_from_fixed_point_refinements
-    hinputBalance hnominal hadjustedInput0 hadjustedRatio hadjustedFloor
+        hcaller.2.2.2.1 hcaller.2.2.2.2.1 hcaller.2.2.2.2.2.1
+        hnominalUpper hn3 hn50 hdegreeEven hdegreeStop hcontinued hfirstFloor
+        hcoefficientFloor hmultiplyTermFloor hdivideTermFloor hcomputedFractional
+        hcomputedPower hcomposedFloor
+  exact single_sided_token_deposit_from_fixed_point_refinements_fee_share
+    (feeShare := SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE)
+      hinputBalance hnominal hadjustedInput0 hadjustedRatio hadjustedFloor
       hfeeMultiplier hcomputedBase hbaseFloor hweights.1.le hcpow hpoolSupply
       hscale hnewSupplyFloor hpoolAmount hdownscaleFloor
 
