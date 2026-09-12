@@ -12,6 +12,7 @@ import CometCPow.BinomialUpper
 import CometCPow.BinomialBelowLower
 import CometCPow.BinomialAboveUpper
 import CometCPow.OperationFeeBound
+import CometCPow.ExactInputPrecise
 import CometCPow.ExactInputSwap
 import CometCPow.ExactInputSwapSource
 import CometCPow.ExactOutputSwap

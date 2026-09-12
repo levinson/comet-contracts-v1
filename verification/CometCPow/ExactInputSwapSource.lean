@@ -1387,9 +1387,9 @@ theorem successfulExactInputMathRun_refines
 
 /--
 Every successful source-shaped exact-input math run has pool-adverse error
-strictly below five percent of the minimum fee's spot-normalized value.
+strictly below `17/800` of the minimum fee's spot-normalized value.
 -/
-theorem successfulExactInputMathRun_adverse_error_lt_five_percent_min_fee
+theorem successfulExactInputMathRun_adverse_error_lt_precise_fee_share
     {inBalance inScalar outBalance outScalar amountIn
       inWeight outWeight fee : ℕ}
     (hinBalance : 0 < inBalance) (hinScalar : 0 < inScalar)
@@ -1409,10 +1409,10 @@ theorem successfulExactInputMathRun_adverse_error_lt_five_percent_min_fee
           ((fee : ℝ) / STROOP)
           ((run.tokenAmountIn : ℝ) / run.tokenBalanceIn)
           ((inWeight : ℝ) / outWeight) <
-      exactInputMinimumFeeOutputValue
+      EXACT_INPUT_ADVERSE_FEE_SHARE * exactInputMinimumFeeOutputValue
           ((run.tokenBalanceOut : ℝ) / outScalar)
           ((inWeight : ℝ) / outWeight)
-          ((run.tokenAmountIn : ℝ) / run.tokenBalanceIn) / 20 := by
+          ((run.tokenAmountIn : ℝ) / run.tokenBalanceIn) := by
   let inputBalance : ℝ := run.tokenBalanceIn
   let inputAmount : ℝ := run.tokenAmountIn
   let outputBalance : ℝ := run.tokenBalanceOut
@@ -1426,8 +1426,9 @@ theorem successfulExactInputMathRun_adverse_error_lt_five_percent_min_fee
   change (run.output : ℝ) -
       exactInputIdealOutput (outputBalance / scale) feeRate nominalRatio
         idealExponent <
-    exactInputMinimumFeeOutputValue (outputBalance / scale) idealExponent
-      nominalRatio / 20
+    EXACT_INPUT_ADVERSE_FEE_SHARE *
+      exactInputMinimumFeeOutputValue (outputBalance / scale) idealExponent
+        nominalRatio
   have hinWeight : 0 < inWeight :=
     lt_of_lt_of_le (by norm_num [MIN_WEIGHT]) hinWeightLower
   have houtWeight : 0 < outWeight :=
@@ -1557,7 +1558,7 @@ theorem successfulExactInputMathRun_adverse_error_lt_five_percent_min_fee
         rw [← htoNatReal, hnat]
         norm_num [STROOP]
       have hresult :=
-        baseline_swap_exact_amount_in_integer_adverse_error_lt_five_percent_min_fee
+        baseline_swap_exact_amount_in_integer_adverse_error_lt_precise_fee_share
           (integerPart := integerPart)
           (inputBalance := inputBalance) (inputAmount := inputAmount)
           (feeRate := feeRate) (nominalRatio := nominalRatio)
@@ -1663,12 +1664,17 @@ theorem successfulExactInputMathRun_adverse_error_lt_five_percent_min_fee
           hidealExponentPositive (by positivity : 0 < nominalRatio)
         have hcpowBound :
             (BONE : ℝ) * computedBase ^ computedExponent - computedPower <
-              exactInputMinimumFeePowerValue idealExponent nominalRatio / 20 := by
+              EXACT_INPUT_ADVERSE_FEE_SHARE *
+                exactInputMinimumFeePowerValue idealExponent nominalRatio := by
+          have hshare0 : 0 < EXACT_INPUT_ADVERSE_FEE_SHARE := by
+            rw [exact_input_adverse_fee_share_value]
+            norm_num
           have hshare :
-              0 < exactInputMinimumFeePowerValue idealExponent nominalRatio / 20 :=
-            div_pos hfeePowerPositive (by norm_num)
+              0 < EXACT_INPUT_ADVERSE_FEE_SHARE *
+                exactInputMinimumFeePowerValue idealExponent nominalRatio :=
+            mul_pos hshare0 hfeePowerPositive
           linarith
-        have hresult := swap_exact_amount_in_from_fixed_point_refinements
+        have hresult := swap_exact_amount_in_from_fixed_point_refinements_fee_share
           (inputBalance := inputBalance) (inputAmount := inputAmount)
           (feeRate := feeRate) (nominalRatio := nominalRatio)
           (adjustedRatio := adjustedRatio) (computedBase := computedBase)
@@ -1727,7 +1733,7 @@ theorem successfulExactInputMathRun_adverse_error_lt_five_percent_min_fee
             all_goals push_cast
             all_goals ring
           have hresult :=
-            baseline_swap_exact_amount_in_first_term_adverse_error_lt_five_percent_min_fee
+            baseline_swap_exact_amount_in_first_term_adverse_error_lt_precise_fee_share
               (integerPart := integerPart)
               (inputBalance := inputBalance) (inputAmount := inputAmount)
               (feeRate := feeRate) (nominalRatio := nominalRatio)
@@ -1822,7 +1828,7 @@ theorem successfulExactInputMathRun_adverse_error_lt_five_percent_min_fee
             all_goals push_cast
             all_goals ring
           have hresult :=
-            baseline_swap_exact_amount_in_multiterm_adverse_error_lt_five_percent_min_fee
+            baseline_swap_exact_amount_in_multiterm_adverse_error_lt_precise_fee_share
               coefficientProduct multiplied computedTerm
               (n := approx.iterations) (integerPart := integerPart)
               (inputBalance := inputBalance) (inputAmount := inputAmount)
@@ -1856,9 +1862,9 @@ theorem successfulExactInputMathRun_adverse_error_lt_five_percent_min_fee
 /--
 Direct theorem for a successful executable `calc_token_out_given_token_in`
 model result under the public swap's positive-input, ratio, fee, and weight
-configuration invariants.
+configuration invariants, at the precise `17/800` fee share.
 -/
-theorem calc_token_out_given_token_in_execution_adverse_error_lt_five_percent_min_fee
+theorem calc_token_out_given_token_in_execution_adverse_error_lt_precise_fee_share
     {inBalance inScalar outBalance outScalar amountIn
       inWeight outWeight fee : ℕ} {output : ℤ}
     (hinBalance : 0 < inBalance) (hinScalar : 0 < inScalar)
@@ -1876,12 +1882,11 @@ theorem calc_token_out_given_token_in_execution_adverse_error_lt_five_percent_mi
         exactInputIdealOutput (outBalance : ℝ)
           ((fee : ℝ) / STROOP) ((amountIn : ℝ) / inBalance)
           ((inWeight : ℝ) / outWeight) <
-      exactInputMinimumFeeOutputValue (outBalance : ℝ)
-          ((inWeight : ℝ) / outWeight) ((amountIn : ℝ) / inBalance) /
-        20 := by
+      EXACT_INPUT_ADVERSE_FEE_SHARE * exactInputMinimumFeeOutputValue (outBalance : ℝ)
+          ((inWeight : ℝ) / outWeight) ((amountIn : ℝ) / inBalance) := by
   obtain ⟨run, houtput⟩ := successfulExactInputMathRun_of_execution hexec
   have hrun :=
-    successfulExactInputMathRun_adverse_error_lt_five_percent_min_fee
+    successfulExactInputMathRun_adverse_error_lt_precise_fee_share
       hinBalance hinScalar houtBalance houtScalar hamountIn hinWeightLower
       hinWeightUpper houtWeightLower houtWeightUpper hinputRatio hfeeLower
       hfeeUpper run
