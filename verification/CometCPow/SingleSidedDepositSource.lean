@@ -768,9 +768,9 @@ theorem bounded_bone_exponent_source_split
 
 /-
 Every successful source-shaped exact-LP-output deposit has pool-adverse error
-strictly below five percent of the adjusted weighted minimum-fee value.
+strictly below `1.107%` of the adjusted weighted minimum-fee value.
 -/
-theorem calc_token_deposits_in_given_lp_token_amount_execution_adverse_error_lt_five_percent_min_fee
+theorem calc_token_deposits_in_given_lp_token_amount_execution_adverse_error_lt_precise_fee_share
     {inputBalance inputScalar poolSupply poolAmountOut inputWeight fee : ℕ}
     {result : SingleSidedDepositExecutionResult}
     (hinputBalance : 0 < inputBalance) (hinputScalar : 0 < inputScalar)
@@ -783,9 +783,10 @@ theorem calc_token_deposits_in_given_lp_token_amount_execution_adverse_error_lt_
     singleSidedDepositIdealInput (inputBalance : ℝ)
           ((inputWeight : ℝ) / STROOP) ((fee : ℝ) / STROOP)
           ((poolAmountOut : ℝ) / poolSupply) - (result.output : ℝ) <
-      singleSidedDepositAdjustedMinimumFeeInputValue (inputBalance : ℝ)
+      SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedDepositAdjustedMinimumFeeInputValue (inputBalance : ℝ)
           ((inputWeight : ℝ) / STROOP) ((fee : ℝ) / STROOP)
-          ((poolAmountOut : ℝ) / poolSupply) / 20 := by
+          ((poolAmountOut : ℝ) / poolSupply) := by
   have href := calcTokenDepositsInGivenLpTokenAmountExecution_refines
     hinputBalance hinputScalar hpoolSupply hpoolAmountOut hweightLower
       hweightUpper hfeeUpper hexec
@@ -920,8 +921,9 @@ theorem calc_token_deposits_in_given_lp_token_amount_execution_adverse_error_lt_
   have hrawResult :
       singleSidedDepositIdealInput (inputBalanceRaw / scale) weight feeRate
             nominalRatio - (result.output : ℝ) <
-        singleSidedDepositAdjustedMinimumFeeInputValue
-            (inputBalanceRaw / scale) weight feeRate nominalRatio / 20 := by
+        SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedDepositAdjustedMinimumFeeInputValue
+            (inputBalanceRaw / scale) weight feeRate nominalRatio := by
     cases hcpowCase : result.cpow with
     | integer integerPart wholeRaw =>
         have hcpowExec :
@@ -940,7 +942,7 @@ theorem calc_token_deposits_in_given_lp_token_amount_execution_adverse_error_lt_
           have hsplit := hexponentSplit.2.2.2
           rw [hcomponents.2.1] at hsplit
           simpa using hsplit.symm
-        exact baseline_single_sided_deposit_integer_adverse_error_lt_five_percent_min_fee
+        exact baseline_single_sided_deposit_integer_adverse_error_lt_precise_fee_share
           (integerPart := integerPart) (poolSupply := poolSupplyRaw)
           (poolAmountOut := poolAmountRaw) (nominalRatio := nominalRatio)
           (inputBalance := inputBalanceRaw) (weight := weight)
@@ -1034,7 +1036,7 @@ theorem calc_token_deposits_in_given_lp_token_amount_execution_adverse_error_lt_
             convert hcomposedCeilRaw using 1
             all_goals push_cast
             all_goals ring
-          exact baseline_single_sided_deposit_first_term_adverse_error_lt_five_percent_min_fee
+          exact baseline_single_sided_deposit_first_term_adverse_error_lt_precise_fee_share
             (integerPart := integerPart) (poolSupply := poolSupplyRaw)
             (poolAmountOut := poolAmountRaw) (nominalRatio := nominalRatio)
             (inputBalance := inputBalanceRaw) (weight := weight)
@@ -1084,7 +1086,7 @@ theorem calc_token_deposits_in_given_lp_token_amount_execution_adverse_error_lt_
               convert hcomposedCeilRaw using 1
               all_goals push_cast
               all_goals ring
-            exact baseline_single_sided_deposit_second_term_adverse_error_lt_five_percent_min_fee
+            exact baseline_single_sided_deposit_second_term_adverse_error_lt_precise_fee_share
               (integerPart := integerPart) (poolSupply := poolSupplyRaw)
               (poolAmountOut := poolAmountRaw) (nominalRatio := nominalRatio)
               (inputBalance := inputBalanceRaw) (weight := weight)
@@ -1180,7 +1182,7 @@ theorem calc_token_deposits_in_given_lp_token_amount_execution_adverse_error_lt_
               convert hcomposedCeilRaw using 1
               all_goals push_cast
               all_goals ring
-            exact baseline_single_sided_deposit_later_adverse_error_lt_five_percent_min_fee
+            exact baseline_single_sided_deposit_later_adverse_error_lt_precise_fee_share
               coefficientProduct multiplied computedTerm
               (n := approx.iterations) (degree := degree)
               (oddIndex := oddIndex) (integerPart := integerPart)

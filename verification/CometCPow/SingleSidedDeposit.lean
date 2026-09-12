@@ -34,6 +34,27 @@ noncomputable def singleSidedDepositAdjustedMinimumFeeInputValue
       (inputBalance * ((1 - weight) / weight) * nominalRatio) /
     (1 - singleSidedWithdrawalFeeRate weight feeRate)
 
+/--
+The certified adverse-error share of the adjusted weighted minimum fee. The
+small-ratio second-stop composition approaches `1.10696%`; `1.107%` is a
+simple strict rational ceiling.
+-/
+noncomputable def SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE : ℝ :=
+  1107 / 100000
+
+/-- One percent of the configured minimum fee rate for the small-ratio branch. -/
+noncomputable def SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE : ℝ :=
+  MIN_FEE_RATE / 100
+
+theorem single_sided_deposit_adverse_fee_share_value :
+    SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE = (1107 : ℝ) / 100000 := by
+  rfl
+
+theorem single_sided_deposit_small_ratio_fee_rate_value :
+    SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE = (1 : ℝ) / 100000000 := by
+  norm_num [SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE,
+    MIN_FEE_RATE, MIN_FEE, STROOP]
+
 /-- The normalized supply-ratio ceiling is above both the ideal base and one. -/
 theorem single_sided_deposit_base_ceil_refines
     {nominalRatio computedBase : ℝ} {computedBaseRaw : ℤ}
@@ -145,8 +166,8 @@ theorem single_sided_deposit_input_ceil_chain
     _ ≤ (output : ℝ) := hdownscaleCeil.le
 
 /-- Compose a raw power bound with the ideal deposit and all caller ceilings. -/
-theorem single_sided_deposit_adverse_error_lt_five_percent_min_fee
-    {inputBalance weight feeRate nominalRatio computedBase computedExponent
+theorem single_sided_deposit_adverse_error_lt_fee_share
+    {feeShare inputBalance weight feeRate nominalRatio computedBase computedExponent
       computedPower computedInput scale : ℝ}
     (hinputBalance : 0 < inputBalance) (hscale : 0 < scale)
     (hweight0 : 0 < weight) (hweight1 : weight < 1)
@@ -156,15 +177,15 @@ theorem single_sided_deposit_adverse_error_lt_five_percent_min_fee
     (hexponent : 1 / weight ≤ computedExponent)
     (hcpow :
       (BONE : ℝ) * computedBase ^ computedExponent - computedPower <
-        singleSidedDepositMinimumFeePowerValue weight nominalRatio / 20)
+        feeShare * singleSidedDepositMinimumFeePowerValue weight nominalRatio)
     (hcomputedInput :
       inputBalance / scale * (computedPower / (BONE : ℝ) - 1) /
           (1 - singleSidedWithdrawalFeeRate weight feeRate) ≤ computedInput) :
     singleSidedDepositIdealInput
           (inputBalance / scale) weight feeRate nominalRatio -
         computedInput <
-      singleSidedDepositAdjustedMinimumFeeInputValue
-        (inputBalance / scale) weight feeRate nominalRatio / 20 := by
+      feeShare * singleSidedDepositAdjustedMinimumFeeInputValue
+        (inputBalance / scale) weight feeRate nominalRatio := by
   have hB : (0 : ℝ) < BONE := by norm_num [BONE]
   have hdenom := single_sided_deposit_fee_denominator_positive
     hweight0.le hweight1.le hfee0 hfee1
@@ -177,7 +198,7 @@ theorem single_sided_deposit_adverse_error_lt_five_percent_min_fee
   have hadversePower :
       (BONE : ℝ) * singleSidedDepositIdealBase nominalRatio ^ (1 / weight) -
           computedPower <
-        singleSidedDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+        feeShare * singleSidedDepositMinimumFeePowerValue weight nominalRatio := by
     linarith
   have hcallerScale :
       0 < inputBalance / scale / (BONE : ℝ) /
@@ -202,10 +223,10 @@ theorem single_sided_deposit_adverse_error_lt_five_percent_min_fee
       ring
     _ < (inputBalance / scale / (BONE : ℝ) /
           (1 - singleSidedWithdrawalFeeRate weight feeRate)) *
-        (singleSidedDepositMinimumFeePowerValue weight nominalRatio / 20) :=
+        (feeShare * singleSidedDepositMinimumFeePowerValue weight nominalRatio) :=
       hscaled
-    _ = singleSidedDepositAdjustedMinimumFeeInputValue
-          (inputBalance / scale) weight feeRate nominalRatio / 20 := by
+    _ = feeShare * singleSidedDepositAdjustedMinimumFeeInputValue
+          (inputBalance / scale) weight feeRate nominalRatio := by
       rw [singleSidedDepositMinimumFeePowerValue,
         singleSidedDepositAdjustedMinimumFeeInputValue]
       field_simp [ne_of_gt hB, ne_of_gt hdenom, ne_of_gt hscale,
@@ -213,8 +234,8 @@ theorem single_sided_deposit_adverse_error_lt_five_percent_min_fee
       ring
 
 /-- Instantiate the operation theorem from the fixed-point caller refinements. -/
-theorem single_sided_deposit_from_fixed_point_refinements
-    {poolSupply poolAmountOut nominalRatio inputBalance weight feeRate
+theorem single_sided_deposit_from_fixed_point_refinements_fee_share
+    {feeShare poolSupply poolAmountOut nominalRatio inputBalance weight feeRate
       computedBase computedExponent computedPower feeMultiplier scale : ℝ}
     {computedBaseRaw computedExponentRaw newBalance tokenAmountAfterFee result
       output : ℤ}
@@ -232,7 +253,7 @@ theorem single_sided_deposit_from_fixed_point_refinements
       IsCeil computedExponentRaw ((BONE : ℝ) * (1 / weight)))
     (hcpow :
       (BONE : ℝ) * computedBase ^ computedExponent - computedPower <
-        singleSidedDepositMinimumFeePowerValue weight nominalRatio / 20)
+        feeShare * singleSidedDepositMinimumFeePowerValue weight nominalRatio)
     (hfeeMultiplier :
       feeMultiplier = 1 - singleSidedWithdrawalFeeRate weight feeRate)
     (hscale : 0 < scale)
@@ -245,8 +266,8 @@ theorem single_sided_deposit_from_fixed_point_refinements
     (hdownscaleCeil : IsCeil output ((result : ℝ) / scale)) :
     singleSidedDepositIdealInput
           (inputBalance / scale) weight feeRate nominalRatio - (output : ℝ) <
-      singleSidedDepositAdjustedMinimumFeeInputValue
-        (inputBalance / scale) weight feeRate nominalRatio / 20 := by
+      feeShare * singleSidedDepositAdjustedMinimumFeeInputValue
+        (inputBalance / scale) weight feeRate nominalRatio := by
   have hratio0 : 0 ≤ nominalRatio := by rw [hnominal]; positivity
   have hbase := single_sided_deposit_base_ceil_refines
     hratio0 hcomputedBase hbaseCeil
@@ -258,7 +279,7 @@ theorem single_sided_deposit_from_fixed_point_refinements
     (by rw [hfeeMultiplier]; exact hdenom) hscale hnewBalanceCeil
       htokenAmount hfeeCeil hdownscaleCeil
   rw [hfeeMultiplier] at hinput
-  exact single_sided_deposit_adverse_error_lt_five_percent_min_fee
+  exact single_sided_deposit_adverse_error_lt_fee_share
     hinputBalance hscale hweight0 hweight1 hfee0 hfee1 hratio0
       hbase.1 hexponent.1 hcpow hinput
 
@@ -388,19 +409,19 @@ theorem single_sided_deposit_continued_displacement_le
 /-- A small mint ratio keeps the rounded direct base below `1.01`. -/
 theorem single_sided_deposit_small_computed_base_lt
     {nominalRatio computedBase : ℝ}
-    (hratioSmall : nominalRatio < 1 / 10000)
+    (hratioSmall : nominalRatio < 1 / 200)
     (hbaseCeilUpper :
       computedBase < 1 + nominalRatio + 1 / (BONE : ℝ)) :
     computedBase < 101 / 100 := by
   have hunit : 1 / (BONE : ℝ) < 1 / 10000 := by norm_num [BONE]
   linarith
 
-/-- A base below `1.01` to a production fractional-case integer part is below `1.1`. -/
+/-- A base below `1.01` to a production fractional-case integer part is below `1.094`. -/
 theorem single_sided_deposit_small_whole_power_lt
     {integerPart : ℕ} {computedBase : ℝ}
     (hbase0 : 0 ≤ computedBase) (hbaseUpper : computedBase < 101 / 100)
     (hintegerPart : integerPart ≤ 9) :
-    computedBase ^ integerPart < 11 / 10 := by
+    computedBase ^ integerPart < 547 / 500 := by
   have hbasePower : computedBase ^ integerPart ≤
       (101 / 100 : ℝ) ^ integerPart :=
     pow_le_pow_left₀ hbase0 (le_of_lt hbaseUpper) integerPart
@@ -410,14 +431,14 @@ theorem single_sided_deposit_small_whole_power_lt
   calc
     computedBase ^ integerPart ≤ (101 / 100 : ℝ) ^ integerPart := hbasePower
     _ ≤ (101 / 100 : ℝ) ^ 9 := hexponentPower
-    _ < 11 / 10 := by norm_num
+    _ < 547 / 500 := by norm_num
 
-/-- A base at most `1.6` to an integer part at most nine is below `69`. -/
-theorem single_sided_deposit_whole_power_lt_sixty_nine
+/-- A base at most `1.6` to an integer part at most nine is below `68.72`. -/
+theorem single_sided_deposit_whole_power_lt_1718_div_25
     {integerPart : ℕ} {computedBase : ℝ}
     (hbase0 : 0 ≤ computedBase) (hbaseUpper : computedBase ≤ 8 / 5)
     (hintegerPart : integerPart ≤ 9) :
-    computedBase ^ integerPart < 69 := by
+    computedBase ^ integerPart < 1718 / 25 := by
   have hbasePower : computedBase ^ integerPart ≤
       (8 / 5 : ℝ) ^ integerPart :=
     pow_le_pow_left₀ hbase0 hbaseUpper integerPart
@@ -427,27 +448,22 @@ theorem single_sided_deposit_whole_power_lt_sixty_nine
   calc
     computedBase ^ integerPart ≤ (8 / 5 : ℝ) ^ integerPart := hbasePower
     _ ≤ (8 / 5 : ℝ) ^ 9 := hexponentPower
-    _ < 69 := by norm_num
+    _ < 1718 / 25 := by norm_num
 
-/-- One twenty-fifth of the configured minimum fee rate. -/
-noncomputable def TWENTY_FIFTH_MIN_FEE_RATE : ℝ := MIN_FEE_RATE / 25
-
-theorem twenty_fifth_minimum_fee_rate_value :
-    TWENTY_FIFTH_MIN_FEE_RATE = (1 : ℝ) / 25000000 := by
-  norm_num [TWENTY_FIFTH_MIN_FEE_RATE, MIN_FEE_RATE, MIN_FEE, STROOP]
-
-/-- The full `0.6` operating displacement still leaves a one-twenty-fifth budget. -/
-theorem accumulated_error_lt_twenty_fifth_min_fee_of_later_terms
+/-- The small-ratio displacement leaves a one-percent fee-rate budget. -/
+theorem accumulated_error_lt_small_ratio_fee_rate_of_later_terms
     {n : ℕ} {firstTerm : ℝ}
     (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
     (hcontinue :
       (CPOW_PRECISION : ℝ) <
-        firstTerm * ((3 : ℝ) / 5 / 2) * ((3 : ℝ) / 5) ^ (n - 3) +
+        firstTerm * ((101 : ℝ) / 20000 / 2) *
+            ((101 : ℝ) / 20000) ^ (n - 3) +
           (3 * ((n - 1 : ℕ) : ℝ) - 2)) :
-    accumulatedError n < TWENTY_FIFTH_MIN_FEE_RATE * firstTerm := by
+    accumulatedError n <
+      SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE * firstTerm := by
   interval_cases n <;>
-    norm_num [accumulatedError, TWENTY_FIFTH_MIN_FEE_RATE, MIN_FEE_RATE,
-      MIN_FEE, STROOP, CPOW_PRECISION] at hcontinue ⊢ <;>
+    norm_num [accumulatedError, SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE,
+      MIN_FEE_RATE, MIN_FEE, STROOP, CPOW_PRECISION] at hcontinue ⊢ <;>
     linarith
 
 /-- Continuation in the full operating band forces the first term above precision. -/
@@ -463,55 +479,60 @@ theorem operating_band_continuation_forces_first_term_above_precision
     norm_num [CPOW_PRECISION] at hcontinue ⊢ <;>
     linarith
 
-/-- The adjusted fractional and base ceilings retain strict weighted-fee margin. -/
-theorem single_sided_deposit_weighted_first_term_fee_scale_lt
+/-- The small-ratio whole power and ceiling units retain the `1.107%` margin. -/
+theorem single_sided_deposit_small_ratio_fee_scale_lt_precise_share
     {weightedFraction feeExponent displacement nominalRatio : ℝ}
-    (hweighted : weightedFraction ≤ (6 / 5 : ℝ) * feeExponent)
+    (hweighted : weightedFraction ≤ (137 / 125 : ℝ) * feeExponent)
     (hfeeExponentPositive : 0 < feeExponent)
     (hratioPositive : 0 < nominalRatio)
     (hdisplacement0 : 0 ≤ displacement)
     (hdisplacement : displacement ≤ (101 / 100 : ℝ) * nominalRatio) :
-    TWENTY_FIFTH_MIN_FEE_RATE *
+    SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE *
         ((BONE : ℝ) * weightedFraction * displacement) <
-      MIN_FEE_RATE * ((BONE : ℝ) * feeExponent * nominalRatio) / 20 := by
+      SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+        (MIN_FEE_RATE * ((BONE : ℝ) * feeExponent * nominalRatio)) := by
   have hproduct :
       weightedFraction * displacement ≤
-        ((6 / 5 : ℝ) * feeExponent) *
+        ((137 / 125 : ℝ) * feeExponent) *
           ((101 / 100 : ℝ) * nominalRatio) :=
     mul_le_mul hweighted hdisplacement hdisplacement0
       (mul_nonneg (by norm_num) hfeeExponentPositive.le)
   have hscaled := mul_le_mul_of_nonneg_left hproduct
     (show (0 : ℝ) ≤ BONE by norm_num [BONE])
-  have hrate0 : 0 ≤ TWENTY_FIFTH_MIN_FEE_RATE := by
-    rw [twenty_fifth_minimum_fee_rate_value]
+  have hrate0 : 0 ≤ SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE := by
+    rw [single_sided_deposit_small_ratio_fee_rate_value]
     norm_num
   have hscaledRate := mul_le_mul_of_nonneg_left hscaled hrate0
   have hpositive : 0 < (BONE : ℝ) * feeExponent * nominalRatio :=
     mul_pos (mul_pos (by norm_num [BONE]) hfeeExponentPositive) hratioPositive
   have hconstant :
-      TWENTY_FIFTH_MIN_FEE_RATE * ((6 / 5 : ℝ) * (101 / 100 : ℝ)) <
-        MIN_FEE_RATE / 20 := by
-    rw [twenty_fifth_minimum_fee_rate_value, minimum_fee_rate_value]
+      SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE *
+          ((137 / 125 : ℝ) * (101 / 100 : ℝ)) <
+        SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE * MIN_FEE_RATE := by
+    rw [single_sided_deposit_small_ratio_fee_rate_value,
+      single_sided_deposit_adverse_fee_share_value, minimum_fee_rate_value]
     norm_num
   have hstrict := mul_lt_mul_of_pos_right hconstant hpositive
   calc
-    TWENTY_FIFTH_MIN_FEE_RATE *
+    SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE *
           ((BONE : ℝ) * weightedFraction * displacement) ≤
-        TWENTY_FIFTH_MIN_FEE_RATE *
-          ((BONE : ℝ) * (((6 / 5 : ℝ) * feeExponent) *
+        SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE *
+          ((BONE : ℝ) * (((137 / 125 : ℝ) * feeExponent) *
             ((101 / 100 : ℝ) * nominalRatio))) := by
       simpa [mul_assoc] using hscaledRate
-    _ = (TWENTY_FIFTH_MIN_FEE_RATE * ((6 / 5 : ℝ) * (101 / 100 : ℝ))) *
+    _ = (SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE *
+          ((137 / 125 : ℝ) * (101 / 100 : ℝ))) *
         ((BONE : ℝ) * feeExponent * nominalRatio) := by ring
-    _ < (MIN_FEE_RATE / 20) *
+    _ < (SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
         ((BONE : ℝ) * feeExponent * nominalRatio) := hstrict
-    _ = MIN_FEE_RATE * ((BONE : ℝ) * feeExponent * nominalRatio) / 20 := by ring
+    _ = SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+        (MIN_FEE_RATE * ((BONE : ℝ) * feeExponent * nominalRatio)) := by ring
 
 /--
 Compose an above-one fractional bound through the reciprocal whole power and
 compare it with the weighted minimum fee.
 -/
-theorem baseline_single_sided_deposit_cpow_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_deposit_cpow_adverse_error_lt_precise_fee_share
     {integerPart : ℕ}
     {weight nominalRatio a computedExponent computedBase computedFractional
       wholeComputed computedPower : ℝ}
@@ -532,14 +553,16 @@ theorem baseline_single_sided_deposit_cpow_adverse_error_lt_five_percent_min_fee
     (hcomputedFractional0 : 0 ≤ computedFractional)
     (hwholeUpper : computedBase ^ integerPart ≤ wholeComputed)
     (hcomposedUpper : wholeComputed * computedFractional ≤ computedPower)
-    (hfractionalFee :
+    (hfractionalSmallFee :
+      nominalRatio < 1 / 200 →
       (BONE : ℝ) * computedBase ^ a - computedFractional <
-        TWENTY_FIFTH_MIN_FEE_RATE *
+        SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE *
           ((BONE : ℝ) * a * (computedBase - 1)))
     (hfractionalCap :
       (BONE : ℝ) * computedBase ^ a - computedFractional < 3151) :
     (BONE : ℝ) * computedBase ^ computedExponent - computedPower <
-      singleSidedDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+      SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedDepositMinimumFeePowerValue weight nominalRatio := by
   let wholeExact : ℝ := computedBase ^ integerPart
   let exactFractional : ℝ := (BONE : ℝ) * computedBase ^ a
   let feeExponent : ℝ := (1 - weight) / weight
@@ -564,53 +587,58 @@ theorem baseline_single_sided_deposit_cpow_adverse_error_lt_five_percent_min_fee
   have haAdjusted := single_sided_deposit_fractional_le_adjusted_fee_exponent
     hweight0 hfeeExponentLower hintegerPartOne
       hcomputedExponentSplit hcomputedExponentUpper
-  by_cases hratioSmall : nominalRatio < 1 / 10000
+  by_cases hratioSmall : nominalRatio < 1 / 200
   · have hsmallBase := single_sided_deposit_small_computed_base_lt
       hratioSmall hbaseCeilUpper
     have hwholeSmall := single_sided_deposit_small_whole_power_lt
       hbase0.le hsmallBase hintegerPart
-    have hwholeA : wholeExact * a ≤ (6 / 5 : ℝ) * feeExponent := by
+    have hwholeA : wholeExact * a ≤ (137 / 125 : ℝ) * feeExponent := by
       have hmul := mul_le_mul hwholeSmall.le haAdjusted ha0
-        (by positivity : 0 ≤ (11 / 10 : ℝ))
+        (by positivity : 0 ≤ (547 / 500 : ℝ))
       dsimp [feeExponent] at haAdjusted ⊢
       dsimp [wholeExact] at hmul ⊢
-      have hconstant : (11 / 10 : ℝ) * (1001 / 1000) < 6 / 5 := by norm_num
+      have hconstant :
+          (547 / 500 : ℝ) * (1001 / 1000) < 137 / 125 := by
+        norm_num
       have hstrict := mul_lt_mul_of_pos_right hconstant hfeeExponentPositive
       nlinarith
-    have hfeeScale := single_sided_deposit_weighted_first_term_fee_scale_lt
+    have hfeeScale := single_sided_deposit_small_ratio_fee_scale_lt_precise_share
       hwholeA hfeeExponentPositive hratioPositive hdisplacement0 hdisplacement
-    have hscaledFractional := mul_lt_mul_of_pos_left hfractionalFee hwhole0
+    have hscaledFractional :=
+      mul_lt_mul_of_pos_left (hfractionalSmallFee hratioSmall) hwhole0
     have hrearrange :
         wholeExact *
-            (TWENTY_FIFTH_MIN_FEE_RATE *
+            (SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE *
               ((BONE : ℝ) * a * (computedBase - 1))) =
-          TWENTY_FIFTH_MIN_FEE_RATE *
+          SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE *
             ((BONE : ℝ) * (wholeExact * a) * (computedBase - 1)) := by ring
     rw [hrearrange] at hscaledFractional
     rw [singleSidedDepositMinimumFeePowerValue]
     exact lt_of_le_of_lt hcomposition (lt_trans hscaledFractional hfeeScale)
-  · have hratioLarge : 1 / 10000 ≤ nominalRatio := le_of_not_gt hratioSmall
-    have hwhole69 := single_sided_deposit_whole_power_lt_sixty_nine
+  · have hratioLarge : 1 / 200 ≤ nominalRatio := le_of_not_gt hratioSmall
+    have hwholeCap := single_sided_deposit_whole_power_lt_1718_div_25
       hbase0.le hbaseUpper hintegerPart
     have hscaledCap := mul_lt_mul_of_pos_left hfractionalCap hwhole0
-    have hcap : wholeExact * (exactFractional - computedFractional) < 69 * 3151 := by
+    have hcap : wholeExact * (exactFractional - computedFractional) <
+        (1718 / 25 : ℝ) * 3151 := by
       exact lt_trans hscaledCap
-        (mul_lt_mul_of_pos_right hwhole69 (by norm_num))
+        (mul_lt_mul_of_pos_right hwholeCap (by norm_num))
     have hfeeLarge :
-        (500000 : ℝ) <
-          singleSidedDepositMinimumFeePowerValue weight nominalRatio / 20 := by
-      rw [singleSidedDepositMinimumFeePowerValue, minimum_fee_rate_value]
+        (1718 / 25 : ℝ) * 3151 <
+          SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+            singleSidedDepositMinimumFeePowerValue weight nominalRatio := by
+      rw [single_sided_deposit_adverse_fee_share_value,
+        singleSidedDepositMinimumFeePowerValue, minimum_fee_rate_value]
       have hproduct :
-          (1 / 9 : ℝ) * (1 / 10000) ≤
+          (1 / 9 : ℝ) * (1 / 200) ≤
             feeExponent * nominalRatio :=
         mul_le_mul hfeeExponentLower hratioLarge (by norm_num)
           hfeeExponentPositive.le
       dsimp [feeExponent] at hproduct ⊢
       norm_num [BONE] at ⊢
       nlinarith
-    have hnumeric : (69 : ℝ) * 3151 < 500000 := by norm_num
     exact lt_of_le_of_lt hcomposition
-      (lt_trans hcap (lt_trans hnumeric hfeeLarge))
+      (lt_trans hcap hfeeLarge)
 
 /-- A fractional reciprocal exponent always leaves a positive whole exponent. -/
 theorem single_sided_deposit_fractional_integer_part_positive
@@ -835,7 +863,7 @@ theorem successful_single_sided_deposit_implies_base_upper
   linarith
 
 /-- Full later-term baseline `c_pow` bound for the exact-LP-output deposit. -/
-theorem baseline_single_sided_deposit_cpow_later_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_deposit_cpow_later_adverse_error_lt_precise_fee_share
     (coefficientProduct multiplied computedTerm : ℕ → ℤ)
     {n degree oddIndex integerPart : ℕ}
     {weight nominalRatio computedBase computedExponent a computedFractional
@@ -881,7 +909,8 @@ theorem baseline_single_sided_deposit_cpow_later_adverse_error_lt_five_percent_m
     (hcomposedCeil :
       IsCeil computedPowerRaw (wholeComputed * computedFractional)) :
     (BONE : ℝ) * computedBase ^ computedExponent - computedPower <
-      singleSidedDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+      SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedDepositMinimumFeePowerValue weight nominalRatio := by
   have hweightBounds := single_sided_deposit_reciprocal_weight_bounds
     hweight0 hweightLower hweightUpper
   have hbase := single_sided_deposit_base_ceil_refines
@@ -989,6 +1018,10 @@ theorem baseline_single_sided_deposit_cpow_later_adverse_error_lt_five_percent_m
     have haZero : a = 0 := le_antisymm (le_of_not_gt hnot) ha0
     rw [hfirstMagnitude, haZero] at hfirstLarge
     norm_num [CPOW_PRECISION] at hfirstLarge
+  have hratioLower := single_sided_deposit_continuation_forces_ratio_lower
+    ha1 hbase.2 hbaseCeilUpper hfirstMagnitude hfirstLarge
+  have hdisplacement := single_sided_deposit_continued_displacement_le
+    hratioLower hbaseCeilUpper
   let exactPartial : ℝ :=
     ∑ k ∈ Finset.range (degree + 1), exactOutputBinomialTerm a computedBase k
   have hpartialUpper : (BONE : ℝ) * computedBase ^ a ≤ exactPartial := by
@@ -1012,12 +1045,21 @@ theorem baseline_single_sided_deposit_cpow_later_adverse_error_lt_five_percent_m
     convert hsumRaw using 1
     simp [U, Nat.add_comm]
   have herrorMono := accumulated_error_mono hdegree1 hdegreeN
-  have hbudget := accumulated_error_lt_twenty_fifth_min_fee_of_later_terms
-    hn3 hn46 (by simpa using hcontinue)
-  have hfractionalFee :
+  have hfractionalSmallFee (hratioSmall : nominalRatio < 1 / 200) :
       (BONE : ℝ) * computedBase ^ a - computedFractional <
-        TWENTY_FIFTH_MIN_FEE_RATE *
+        SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE *
           ((BONE : ℝ) * a * (computedBase - 1)) := by
+    have hxSmall : |computedBase - 1| ≤ (101 : ℝ) / 20000 := by
+      rw [abs_of_nonneg (sub_nonneg.mpr hbase.2)]
+      have hscaled := mul_lt_mul_of_pos_left hratioSmall
+        (show (0 : ℝ) < 101 / 100 by norm_num)
+      exact le_trans hdisplacement (le_of_lt (by
+        norm_num at hscaled ⊢
+        linarith))
+    have hcontinueSmall := continued_loop_forces_sharp_first_term_scale
+      T ha0 ha1 hxSmall (by norm_num) hrec hn3 hprevious htermError
+    have hbudget := accumulated_error_lt_small_ratio_fee_rate_of_later_terms
+      hn3 hn46 (by simpa using hcontinueSmall)
     have hadverse :
         (BONE : ℝ) * computedBase ^ a - computedFractional <
           accumulatedError degree := by
@@ -1047,10 +1089,6 @@ theorem baseline_single_sided_deposit_cpow_later_adverse_error_lt_five_percent_m
     have hdegreeCap := le_trans herrorMono (accumulated_error_le_3151 hn46)
     have hmargin : (3151 : ℝ) < BONE := by norm_num [BONE]
     linarith
-  have hratioLower := single_sided_deposit_continuation_forces_ratio_lower
-    ha1 hbase.2 hbaseCeilUpper hfirstMagnitude hfirstLarge
-  have hdisplacement := single_sided_deposit_continued_displacement_le
-    hratioLower hbaseCeilUpper
   have hexponent := single_sided_deposit_exponent_ceil_refines
     hcomputedExponent hexponentCeil
   have hcomputedExponentTen := single_sided_deposit_computed_exponent_le_ten
@@ -1073,14 +1111,14 @@ theorem baseline_single_sided_deposit_cpow_later_adverse_error_lt_five_percent_m
   have hcomposedUpper : wholeComputed * computedFractional ≤ computedPower := by
     rw [hcomputedPower]
     exact hcomposedCeil.le
-  exact baseline_single_sided_deposit_cpow_adverse_error_lt_five_percent_min_fee
+  exact baseline_single_sided_deposit_cpow_adverse_error_lt_precise_fee_share
     hweight0 hweightBounds.2 ha0 hcomputedExponentSplit hexponent.2
       hintegerPartOne hintegerPart hratioPositive hbase.2 hbaseUpper
       hbaseCeilUpper hdisplacement hcomputedFractional0 hwholeUpper
-      hcomposedUpper hfractionalFee hfractionalCap
+      hcomposedUpper hfractionalSmallFee hfractionalCap
 
 /-- The second stop removes its negative term and leaves only the first floor unit. -/
-theorem baseline_single_sided_deposit_cpow_second_term_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_deposit_cpow_second_term_adverse_error_lt_precise_fee_share
     {integerPart : ℕ}
     {weight nominalRatio computedBase computedExponent a wholeComputed
       computedPower : ℝ}
@@ -1108,7 +1146,8 @@ theorem baseline_single_sided_deposit_cpow_second_term_adverse_error_lt_five_per
       IsCeil computedPowerRaw
         (wholeComputed * ((BONE : ℝ) + (firstRounded : ℝ)))) :
     (BONE : ℝ) * computedBase ^ computedExponent - computedPower <
-      singleSidedDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+      SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedDepositMinimumFeePowerValue weight nominalRatio := by
   have hweightBounds := single_sided_deposit_reciprocal_weight_bounds
     hweight0 hweightLower hweightUpper
   have hbase := single_sided_deposit_base_ceil_refines
@@ -1157,14 +1196,14 @@ theorem baseline_single_sided_deposit_cpow_second_term_adverse_error_lt_five_per
       linarith [hfirstFloor.lt_add_one]
     linarith
   have honeFee :
-      (1 : ℝ) < TWENTY_FIFTH_MIN_FEE_RATE *
+      (1 : ℝ) < SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE *
         ((BONE : ℝ) * a * (computedBase - 1)) := by
-    rw [twenty_fifth_minimum_fee_rate_value]
+    rw [single_sided_deposit_small_ratio_fee_rate_value]
     norm_num [CPOW_PRECISION] at hfirstLarge ⊢
     linarith
-  have hfractionalFee :
+  have hfractionalSmallFee (_ : nominalRatio < 1 / 200) :
       (BONE : ℝ) * computedBase ^ a - computedFractional <
-        TWENTY_FIFTH_MIN_FEE_RATE *
+        SINGLE_SIDED_DEPOSIT_SMALL_RATIO_FEE_RATE *
           ((BONE : ℝ) * a * (computedBase - 1)) :=
     lt_trans hfractionalOne honeFee
   have hfractionalCap :
@@ -1180,11 +1219,11 @@ theorem baseline_single_sided_deposit_cpow_second_term_adverse_error_lt_five_per
     dsimp [computedFractional]
     rw [hcomputedPower]
     exact hcomposedCeil.le
-  exact baseline_single_sided_deposit_cpow_adverse_error_lt_five_percent_min_fee
+  exact baseline_single_sided_deposit_cpow_adverse_error_lt_precise_fee_share
     hweight0 hweightBounds.2 ha0 hcomputedExponentSplit hexponent.2
       hintegerPartOne hintegerPart hratioPositive hbase.2 hbaseUpper
       hbaseCeilUpper hdisplacement hcomputedFractional0 hwholeUpper
-      hcomposedUpper hfractionalFee hfractionalCap
+      hcomposedUpper hfractionalSmallFee hfractionalCap
 
 /-- Positive weight complement and mint ratio make the deposit fee scale positive. -/
 theorem single_sided_deposit_minimum_fee_power_value_positive
@@ -1199,7 +1238,7 @@ theorem single_sided_deposit_minimum_fee_power_value_positive
       hratioPositive)
 
 /-- Complete corrected-first-term comparison for the modeled deposit caller. -/
-theorem baseline_single_sided_deposit_first_term_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_deposit_first_term_adverse_error_lt_precise_fee_share
     {integerPart : ℕ}
     {poolSupply poolAmountOut nominalRatio inputBalance weight feeRate
       computedBase computedExponent a wholeComputed computedPower feeMultiplier
@@ -1239,8 +1278,9 @@ theorem baseline_single_sided_deposit_first_term_adverse_error_lt_five_percent_m
     (hdownscaleCeil : IsCeil output ((result : ℝ) / scale)) :
     singleSidedDepositIdealInput
           (inputBalance / scale) weight feeRate nominalRatio - (output : ℝ) <
-      singleSidedDepositAdjustedMinimumFeeInputValue
-        (inputBalance / scale) weight feeRate nominalRatio / 20 := by
+      SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedDepositAdjustedMinimumFeeInputValue
+          (inputBalance / scale) weight feeRate nominalRatio := by
   have hratio0 : 0 ≤ nominalRatio := by rw [hnominal]; positivity
   have hratioPositive : 0 < nominalRatio := by rw [hnominal]; positivity
   have hbase := single_sided_deposit_base_ceil_refines
@@ -1253,19 +1293,24 @@ theorem baseline_single_sided_deposit_first_term_adverse_error_lt_five_percent_m
     hweight0 hweight1 hratioPositive
   have hcpow :
       (BONE : ℝ) * computedBase ^ computedExponent - computedPower <
-        singleSidedDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+        SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedDepositMinimumFeePowerValue weight nominalRatio := by
     have hshare :
-        0 < singleSidedDepositMinimumFeePowerValue weight nominalRatio / 20 :=
-      div_pos hfeePositive (by norm_num)
+        0 < SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedDepositMinimumFeePowerValue weight nominalRatio :=
+      mul_pos (by
+        rw [single_sided_deposit_adverse_fee_share_value]
+        norm_num) hfeePositive
     linarith
-  exact single_sided_deposit_from_fixed_point_refinements
-    hpoolSupply hpoolAmountOut hnominal hinputBalance hweight0 hweight1
+  exact single_sided_deposit_from_fixed_point_refinements_fee_share
+    (feeShare := SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE)
+      hpoolSupply hpoolAmountOut hnominal hinputBalance hweight0 hweight1
       hfee0 hfee1 hcomputedBase hbaseCeil hcomputedExponent hexponentCeil
       hcpow hfeeMultiplier hscale hnewBalanceCeil htokenAmount hfeeCeil
       hdownscaleCeil
 
 /-- Complete integer-only comparison for the modeled deposit caller. -/
-theorem baseline_single_sided_deposit_integer_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_deposit_integer_adverse_error_lt_precise_fee_share
     {integerPart : ℕ}
     {poolSupply poolAmountOut nominalRatio inputBalance weight feeRate
       computedBase computedPower feeMultiplier scale : ℝ}
@@ -1298,8 +1343,9 @@ theorem baseline_single_sided_deposit_integer_adverse_error_lt_five_percent_min_
     (hdownscaleCeil : IsCeil output ((result : ℝ) / scale)) :
     singleSidedDepositIdealInput
           (inputBalance / scale) weight feeRate nominalRatio - (output : ℝ) <
-      singleSidedDepositAdjustedMinimumFeeInputValue
-        (inputBalance / scale) weight feeRate nominalRatio / 20 := by
+      SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedDepositAdjustedMinimumFeeInputValue
+          (inputBalance / scale) weight feeRate nominalRatio := by
   have hratio0 : 0 ≤ nominalRatio := by rw [hnominal]; positivity
   have hratioPositive : 0 < nominalRatio := by rw [hnominal]; positivity
   have hbase := single_sided_deposit_base_ceil_refines
@@ -1310,19 +1356,24 @@ theorem baseline_single_sided_deposit_integer_adverse_error_lt_five_percent_min_
     hweight0 hweight1 hratioPositive
   have hcpow :
       (BONE : ℝ) * computedBase ^ (integerPart : ℝ) - computedPower <
-        singleSidedDepositMinimumFeePowerValue weight nominalRatio / 20 := by
+        SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedDepositMinimumFeePowerValue weight nominalRatio := by
     have hshare :
-        0 < singleSidedDepositMinimumFeePowerValue weight nominalRatio / 20 :=
-      div_pos hfeePositive (by norm_num)
+        0 < SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+          singleSidedDepositMinimumFeePowerValue weight nominalRatio :=
+      mul_pos (by
+        rw [single_sided_deposit_adverse_fee_share_value]
+        norm_num) hfeePositive
     linarith
-  exact single_sided_deposit_from_fixed_point_refinements
-    hpoolSupply hpoolAmountOut hnominal hinputBalance hweight0 hweight1
+  exact single_sided_deposit_from_fixed_point_refinements_fee_share
+    (feeShare := SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE)
+      hpoolSupply hpoolAmountOut hnominal hinputBalance hweight0 hweight1
       hfee0 hfee1 hcomputedBase hbaseCeil hcomputedExponent hexponentCeil
       hcpow hfeeMultiplier hscale hnewBalanceCeil htokenAmount hfeeCeil
       hdownscaleCeil
 
 /-- Complete second-term comparison for the modeled deposit caller. -/
-theorem baseline_single_sided_deposit_second_term_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_deposit_second_term_adverse_error_lt_precise_fee_share
     {integerPart : ℕ}
     {poolSupply poolAmountOut nominalRatio inputBalance weight feeRate
       computedBase computedExponent a wholeComputed computedPower feeMultiplier
@@ -1370,8 +1421,9 @@ theorem baseline_single_sided_deposit_second_term_adverse_error_lt_five_percent_
     (hmaxInputGuard : output ≤ maxInput) :
     singleSidedDepositIdealInput
           (inputBalance / scale) weight feeRate nominalRatio - (output : ℝ) <
-      singleSidedDepositAdjustedMinimumFeeInputValue
-        (inputBalance / scale) weight feeRate nominalRatio / 20 := by
+      SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedDepositAdjustedMinimumFeeInputValue
+          (inputBalance / scale) weight feeRate nominalRatio := by
   have hratio0 : 0 ≤ nominalRatio := by rw [hnominal]; positivity
   have hratioPositive : 0 < nominalRatio := by rw [hnominal]; positivity
   have hbase := single_sided_deposit_base_ceil_refines
@@ -1410,19 +1462,20 @@ theorem baseline_single_sided_deposit_second_term_adverse_error_lt_five_percent_
     hinputBalance hscale hfeeMultiplier0 hfeeMultiplier1 hpowerLower
       hcomputedInput hmaxInput
   have hcpow :=
-    baseline_single_sided_deposit_cpow_second_term_adverse_error_lt_five_percent_min_fee
+    baseline_single_sided_deposit_cpow_second_term_adverse_error_lt_precise_fee_share
       hweight0 hweightLower hweightUpper hratio0 hratioPositive hcomputedBase
         hbaseCeil hbaseUpper hcomputedExponent hexponentCeil ha0 ha1
         hcomputedExponentSplit hfirstFloor hcontinued hwholeTrace
         hcomputedPower hcomposedCeil
-  exact single_sided_deposit_from_fixed_point_refinements
-    hpoolSupply hpoolAmountOut hnominal hinputBalance hweight0 hweight1
+  exact single_sided_deposit_from_fixed_point_refinements_fee_share
+    (feeShare := SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE)
+      hpoolSupply hpoolAmountOut hnominal hinputBalance hweight0 hweight1
       hfee0 hfee1 hcomputedBase hbaseCeil hcomputedExponent hexponentCeil
       hcpow hfeeMultiplier hscale hnewBalanceCeil htokenAmount hfeeCeil
       hdownscaleCeil
 
 /-- Complete later-term comparison for the modeled deposit caller. -/
-theorem baseline_single_sided_deposit_later_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_deposit_later_adverse_error_lt_precise_fee_share
     (coefficientProduct multiplied computedTerm : ℕ → ℤ)
     {n degree oddIndex integerPart : ℕ}
     {poolSupply poolAmountOut nominalRatio inputBalance weight feeRate
@@ -1489,8 +1542,9 @@ theorem baseline_single_sided_deposit_later_adverse_error_lt_five_percent_min_fe
     (hmaxInputGuard : output ≤ maxInput) :
     singleSidedDepositIdealInput
           (inputBalance / scale) weight feeRate nominalRatio - (output : ℝ) <
-      singleSidedDepositAdjustedMinimumFeeInputValue
-        (inputBalance / scale) weight feeRate nominalRatio / 20 := by
+      SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE *
+        singleSidedDepositAdjustedMinimumFeeInputValue
+          (inputBalance / scale) weight feeRate nominalRatio := by
   have hratio0 : 0 ≤ nominalRatio := by rw [hnominal]; positivity
   have hratioPositive : 0 < nominalRatio := by rw [hnominal]; positivity
   have hbase := single_sided_deposit_base_ceil_refines
@@ -1543,15 +1597,16 @@ theorem baseline_single_sided_deposit_later_adverse_error_lt_five_percent_min_fe
     hinputBalance hscale hfeeMultiplier0 hfeeMultiplier1 hpowerLower
       hcomputedInput hmaxInput
   have hcpow :=
-    baseline_single_sided_deposit_cpow_later_adverse_error_lt_five_percent_min_fee
+    baseline_single_sided_deposit_cpow_later_adverse_error_lt_precise_fee_share
       coefficientProduct multiplied computedTerm hweight0 hweightLower
         hweightUpper hratio0 hratioPositive hcomputedBase hbaseCeil
         hbaseUpper hcomputedExponent hexponentCeil ha0 ha1
         hcomputedExponentSplit hn3 hn50 hdegreeOdd hdegreeStop hcontinued
         hfirstFloor hcoefficientFloor hmultiplyTermFloor hdivideTermFloor
         hcomputedFractional hwholeTrace hcomputedPower hcomposedCeil
-  exact single_sided_deposit_from_fixed_point_refinements
-    hpoolSupply hpoolAmountOut hnominal hinputBalance hweight0 hweight1
+  exact single_sided_deposit_from_fixed_point_refinements_fee_share
+    (feeShare := SINGLE_SIDED_DEPOSIT_ADVERSE_FEE_SHARE)
+      hpoolSupply hpoolAmountOut hnominal hinputBalance hweight0 hweight1
       hfee0 hfee1 hcomputedBase hbaseCeil hcomputedExponent hexponentCeil
       hcpow hfeeMultiplier hscale hnewBalanceCeil htokenAmount hfeeCeil
       hdownscaleCeil
