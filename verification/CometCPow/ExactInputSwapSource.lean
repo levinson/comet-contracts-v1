@@ -817,7 +817,7 @@ def ExactInputCPowExecutionResult.powerRaw :
   | .fractional _ _ _ _ powerRaw => powerRaw
 
 /-- Rust's nonnegative `i128 as u32` conversion, expressed on naturals. -/
-private def rustU32Cast (value : ℕ) : ℕ := value % (2 ^ 32)
+def rustU32Cast (value : ℕ) : ℕ := value % (2 ^ 32)
 
 /-- Scaling a STROOP exponent to BONE preserves its integer/remainder split. -/
 theorem scaledExponentSourceSplit (exponentStroop : ℕ) :
@@ -849,7 +849,7 @@ theorem scaledExponentSourceSplit (exponentStroop : ℕ) :
   omega
 
 /-- The configured exponent range makes Rust's `u32` conversion lossless. -/
-private theorem rustU32Cast_eq_self_of_le_nine
+theorem rustU32Cast_eq_self_of_le_nine
     {value : ℕ} (hvalue : value ≤ 9) : rustU32Cast value = value := by
   apply Nat.mod_eq_of_lt
   exact lt_of_le_of_lt hvalue (by norm_num)

@@ -582,20 +582,21 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
     (ha0 : 0 ≤ a) (ha1 : a ≤ 1)
     (hcomputedExponentSplit : computedExponent = (integerPart : ℝ) + a)
     (hn3 : 3 ≤ n)
+    (hn50 : n ≤ 50)
     (hdegreeOdd : degree = 2 * oddIndex + 1)
     (hdegreeStop : degree = n ∨ degree + 1 = n)
     (hcontinued : ∀ k, 1 ≤ k → k < n →
       (CPOW_PRECISION : ℝ) < |(computedTerm k : ℝ)|)
     (hfirstFloor :
       IsFloor (computedTerm 1) (exactOutputBinomialTerm a computedBase 1))
-    (hcoefficientFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hcoefficientFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (coefficientProduct (k + 1))
         ((BONE : ℝ) * (a - (k : ℝ)) * (computedBase - 1)))
-    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (multiplied (k + 1))
         ((computedTerm k : ℝ) * (coefficientProduct (k + 1) : ℝ) /
           (BONE : ℝ)))
-    (hdivideTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hdivideTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (computedTerm (k + 1))
         ((multiplied (k + 1) : ℝ) / ((k : ℝ) + 1)))
     (hcomputedFractional :
@@ -662,11 +663,11 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
     have hscale : |T 1| * (51 / 100 : ℝ) ^ (k - 1) ≤ |T 1| := by
       nlinarith [abs_nonneg (T 1)]
     exact lt_of_le_of_lt (le_trans hterms hscale) hfirstBelowScale
-  have herrorRec : ∀ k, 1 ≤ k → k < 50 →
+  have herrorRec : ∀ k, 1 ≤ k → k < n →
       |T (k + 1) - U (k + 1)| <
         (1 + 1 / (((k + 1 : ℕ) : ℝ) * (BONE : ℝ))) * |T k - U k| +
           1 / ((k + 1 : ℕ) : ℝ) + 1 / ((k + 1 : ℕ) : ℝ) + 1 := by
-    intro k hk hk50
+    intro k hk hkn
     have hcoefficientNonpos : a - (k : ℝ) ≤ 0 := by
       have hkReal : (1 : ℝ) ≤ k := by exact_mod_cast hk
       linarith
@@ -682,15 +683,13 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
       (nextComputed := computedTerm (k + 1))
       (by norm_num [BONE]) (by positivity) hcoefficientBound
       (le_trans hx (by norm_num)) (hexactTermMagnitude k hk)
-      (hcoefficientFloor k hk hk50)
-      (by simpa [U] using hmultiplyTermFloor k hk hk50)
-      (hdivideTermFloor k hk hk50)
+      (hcoefficientFloor k hk hkn)
+      (by simpa [U] using hmultiplyTermFloor k hk hkn)
+      (hdivideTermFloor k hk hkn)
     rw [hrec k]
     simpa [U, Nat.cast_add, Nat.cast_one, add_assoc] using hstep
-  have htermBounds := recurrence_error_budget (BONE : ℝ)
-    (fun k ↦ |T k - U k|) (by norm_num [BONE]) hfirstError herrorRec
-  have herror46 : |T 46 - U 46| < 3 * (46 : ℝ) - 2 :=
-    htermBounds 46 (by norm_num) (by norm_num)
+  have htermBounds := recurrence_error_budget_until (BONE : ℝ)
+    (fun k ↦ |T k - U k|) hn50 (by norm_num [BONE]) hfirstError herrorRec
   have htermZero : |T 0| ≤ (BONE : ℝ) := by
     dsimp [T]
     simp
@@ -699,13 +698,15 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
       rw [abs_of_nonneg (sub_nonneg.mpr hbase.2)] at hbaseDisplacement
       exact hbaseDisplacement
     linarith
-  have hstopsBy46 : |U 46| < (CPOW_PRECISION : ℝ) :=
-    pool_operating_base_converges_by_iteration_46
-      T ha0 ha1 (by linarith : (1 / 2 : ℝ) ≤ computedBase)
-        hbaseUpperOperating
-        htermZero hrec herror46
   have hn46 : n ≤ 46 := by
     by_contra hn
+    have herror46 : |T 46 - U 46| < 3 * (46 : ℝ) - 2 :=
+      htermBounds 46 (by norm_num) (by omega)
+    have hstopsBy46 : |U 46| < (CPOW_PRECISION : ℝ) :=
+      pool_operating_base_converges_by_iteration_46
+        T ha0 ha1 (by linarith : (1 / 2 : ℝ) ≤ computedBase)
+          hbaseUpperOperating
+          htermZero hrec herror46
     have hstillRunning := hcontinued 46 (by norm_num) (by omega)
     dsimp [U] at hstopsBy46
     linarith
@@ -745,10 +746,10 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
     ring
   have hdegree1 : 1 ≤ degree := by rw [hdegreeOdd]; omega
   have hdegreeN : degree ≤ n := by rcases hdegreeStop with h | h <;> omega
-  have hdegree50 : degree ≤ 50 := le_trans hdegreeN (le_trans hn46 (by norm_num))
-  have hsumRaw := recurrence_implies_partial_sum_error_budget
-    (BONE : ℝ) T U (by norm_num [BONE]) hfirstError herrorRec
-      hdegree1 hdegree50
+  have hdegree50 : degree ≤ 50 := le_trans hdegreeN hn50
+  have hsumRaw := recurrence_implies_partial_sum_error_budget_until
+    (BONE : ℝ) T U hdegree1 hdegree50 (by norm_num [BONE]) hfirstError
+      (fun k hk hdegree ↦ herrorRec k hk (lt_of_lt_of_le hdegree hdegreeN))
   have hsum : |exactPartial - computedFractional| < accumulatedError degree := by
     rw [hexactPartial, hcomputedFractional, accumulatedError]
     convert hsumRaw using 1
@@ -841,20 +842,21 @@ theorem baseline_swap_exact_amount_out_later_adverse_error_lt_five_percent_min_f
     (ha0 : 0 ≤ a) (ha1 : a ≤ 1)
     (hcomputedExponentSplit : computedExponent = (integerPart : ℝ) + a)
     (hn3 : 3 ≤ n)
+    (hn50 : n ≤ 50)
     (hdegreeOdd : degree = 2 * oddIndex + 1)
     (hdegreeStop : degree = n ∨ degree + 1 = n)
     (hcontinued : ∀ k, 1 ≤ k → k < n →
       (CPOW_PRECISION : ℝ) < |(computedTerm k : ℝ)|)
     (hfirstFloor :
       IsFloor (computedTerm 1) (exactOutputBinomialTerm a computedBase 1))
-    (hcoefficientFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hcoefficientFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (coefficientProduct (k + 1))
         ((BONE : ℝ) * (a - (k : ℝ)) * (computedBase - 1)))
-    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (multiplied (k + 1))
         ((computedTerm k : ℝ) * (coefficientProduct (k + 1) : ℝ) /
           (BONE : ℝ)))
-    (hdivideTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hdivideTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (computedTerm (k + 1))
         ((multiplied (k + 1) : ℝ) / ((k : ℝ) + 1)))
     (hcomputedFractional :
@@ -885,7 +887,7 @@ theorem baseline_swap_exact_amount_out_later_adverse_error_lt_five_percent_min_f
     coefficientProduct multiplied computedTerm hratio0 hratioPositive
       hratioUpper hcomputedBase hbaseCeil hidealExponentLower
       hidealExponentUpper hcomputedExponent hexponentCeil ha0 ha1
-      hcomputedExponentSplit hn3 hdegreeOdd hdegreeStop hcontinued
+      hcomputedExponentSplit hn3 hn50 hdegreeOdd hdegreeStop hcontinued
       hfirstFloor hcoefficientFloor hmultiplyTermFloor hdivideTermFloor
       hcomputedFractional hwholeTrace hcomputedPower hcomposedCeil
   exact swap_exact_amount_out_from_fixed_point_refinements
