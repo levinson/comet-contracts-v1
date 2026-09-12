@@ -213,7 +213,7 @@ theorem exactOutputApproxExecution_first_term_refines
   simpa using hrefinements.1
 
 /-- Above-one recurrence floors preserve the alternating term signs. -/
-private theorem exactOutputApproxStep_sign
+theorem exactOutputApproxStep_sign
     {xRaw remainRaw : ℤ} {iteration : ℕ} {state : ExactInputApproxState}
     (hx : 0 < xRaw) (hremainUpper : remainRaw < BONE)
     (hiteration2 : 2 ≤ iteration) (hiteration50 : iteration ≤ 50)

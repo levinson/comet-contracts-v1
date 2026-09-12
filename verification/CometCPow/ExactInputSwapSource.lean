@@ -416,6 +416,38 @@ theorem exactInputApproxFindStop_success
           omega
         · exact htail.2.2.2.2.2 k (by omega) hkResult
 
+/-- A result strictly before fuel exhaustion satisfied the source stop test. -/
+theorem exactInputApproxFindStop_final_le_of_lt_cap
+    {xRaw remainRaw : ℤ} {fuel completed : ℕ}
+    {result : ExactInputApproxLoopResult}
+    (hexec :
+      exactInputApproxFindStop xRaw remainRaw fuel completed = some result)
+    (hcap : result.iterations < completed + fuel) :
+    |(exactInputApproxStateAt xRaw remainRaw result.iterations).term| ≤
+      CPOW_PRECISION := by
+  induction fuel generalizing completed with
+  | zero =>
+      simp [exactInputApproxFindStop, Option.bind_eq_some_iff] at hexec
+      rcases hexec with ⟨state, hstate, hresult⟩
+      subst result
+      simp at hcap
+  | succ fuel ih =>
+      rw [exactInputApproxFindStop] at hexec
+      rcases Option.bind_eq_some.mp hexec with ⟨state, hstate, hafterState⟩
+      rcases Option.bind_eq_some.mp hafterState with
+        ⟨absTerm, habsTerm, hafterAbs⟩
+      by_cases hstop : absTerm ≤ CPOW_PRECISION
+      · rw [if_pos hstop] at hafterAbs
+        have hresult := Option.some.inj hafterAbs
+        subst result
+        have hstateAt :
+            exactInputApproxStateAt xRaw remainRaw (completed + 1) = state := by
+          simp [exactInputApproxStateAt, hstate]
+        rw [hstateAt, ← exactInputAbsExecution_eq_abs habsTerm]
+        exact hstop
+      · rw [if_neg hstop] at hafterAbs
+        exact ih hafterAbs (by omega)
+
 /-- The checked sum state is exactly the sum of the executed term prefix. -/
 theorem exactInputApproxSteps_sum
     {xRaw remainRaw : ℤ} {iteration : ℕ}
