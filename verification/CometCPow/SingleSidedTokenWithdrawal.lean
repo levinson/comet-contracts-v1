@@ -549,19 +549,20 @@ theorem baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_five_
     (hweightUpper : weight ≤ (MAX_WEIGHT : ℝ) / STROOP)
     (hbaseHalf : 1 / 2 ≤ computedBase) (hbaseStrict : computedBase < 1)
     (hn3 : 3 ≤ n)
+    (hn50 : n ≤ 50)
     (hcontinued : ∀ k, 1 ≤ k → k < n →
       (CPOW_PRECISION : ℝ) < |(computedTerm k : ℝ)|)
     (hfirstFloor :
       IsFloor (computedTerm 1)
         (exactInputBinomialTerm weight computedBase 1))
-    (hcoefficientFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hcoefficientFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (coefficientProduct (k + 1))
         ((BONE : ℝ) * (weight - (k : ℝ)) * (computedBase - 1)))
-    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (multiplied (k + 1))
         ((computedTerm k : ℝ) * (coefficientProduct (k + 1) : ℝ) /
           (BONE : ℝ)))
-    (hdivideTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hdivideTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (computedTerm (k + 1))
         ((multiplied (k + 1) : ℝ) / ((k : ℝ) + 1)))
     (hcomputedFractional :
@@ -612,11 +613,11 @@ theorem baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_five_
     have hscale : |T 1| * (1 / 2 : ℝ) ^ (k - 1) ≤ |T 1| := by
       nlinarith [abs_nonneg (T 1)]
     exact lt_of_le_of_lt (le_trans hterms hscale) hfirstBelowScale
-  have herrorRec : ∀ k, 1 ≤ k → k < 50 →
+  have herrorRec : ∀ k, 1 ≤ k → k < n →
       |T (k + 1) - U (k + 1)| <
         (1 + 1 / (((k + 1 : ℕ) : ℝ) * (BONE : ℝ))) * |T k - U k| +
           1 / ((k + 1 : ℕ) : ℝ) + 1 / ((k + 1 : ℕ) : ℝ) + 1 := by
-    intro k hk hk50
+    intro k hk hkn
     have hcoefficientNonpos : weight - (k : ℝ) ≤ 0 := by
       have hkReal : (1 : ℝ) ≤ k := by exact_mod_cast hk
       linarith
@@ -632,25 +633,25 @@ theorem baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_five_
       (nextComputed := computedTerm (k + 1))
       (by norm_num [BONE]) (by positivity) hcoefficientBound
       (le_trans hx (by norm_num)) (hexactTermMagnitude k hk)
-      (hcoefficientFloor k hk hk50)
-      (by simpa [U] using hmultiplyTermFloor k hk hk50)
-      (hdivideTermFloor k hk hk50)
+      (hcoefficientFloor k hk hkn)
+      (by simpa [U] using hmultiplyTermFloor k hk hkn)
+      (hdivideTermFloor k hk hkn)
     rw [hrec k]
     simpa [U, Nat.cast_add, Nat.cast_one, add_assoc] using hstep
-  have htermBounds := recurrence_error_budget (BONE : ℝ)
-    (fun k ↦ |T k - U k|) (by norm_num [BONE]) hfirstError herrorRec
-  have herror46 : |T 46 - U 46| < 3 * (46 : ℝ) - 2 :=
-    htermBounds 46 (by norm_num) (by norm_num)
+  have htermBounds := recurrence_error_budget_until (BONE : ℝ)
+    (fun k ↦ |T k - U k|) hn50 (by norm_num [BONE]) hfirstError herrorRec
   have htermZero : |T 0| ≤ (BONE : ℝ) := by
     dsimp [T]
     simp
-  have hstopsBy46 : |U 46| < (CPOW_PRECISION : ℝ) :=
-    pool_operating_base_converges_by_iteration_46
-      T hweights.1.le hweights.2.le hbaseHalf
-        (show computedBase ≤ 8 / 5 by linarith) htermZero hrec herror46
   have hn46 : n ≤ 46 := by
     by_contra hnot
     have hnlt : 46 < n := Nat.lt_of_not_ge hnot
+    have herror46 : |T 46 - U 46| < 3 * (46 : ℝ) - 2 :=
+      htermBounds 46 (by norm_num) (by omega)
+    have hstopsBy46 : |U 46| < (CPOW_PRECISION : ℝ) :=
+      pool_operating_base_converges_by_iteration_46
+        T hweights.1.le hweights.2.le hbaseHalf
+          (show computedBase ≤ 8 / 5 by linarith) htermZero hrec herror46
     have hstillRunning := hcontinued 46 (by norm_num) hnlt
     dsimp [U] at hstopsBy46
     linarith
@@ -679,9 +680,9 @@ theorem baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_five_
     rw [Finset.sum_range_succ']
     simp
     ring
-  have hsumRaw := recurrence_implies_partial_sum_error_budget
-    (BONE : ℝ) T U (by norm_num [BONE]) hfirstError herrorRec
-      (show 1 ≤ n by omega) (show n ≤ 50 by omega)
+  have hsumRaw := recurrence_implies_partial_sum_error_budget_until
+    (BONE : ℝ) T U (show 1 ≤ n by omega) hn50 (by norm_num [BONE])
+      hfirstError herrorRec
   have hsum : |exactPartial - computedPartial| < accumulatedError n := by
     rw [hexactPartial]
     dsimp [computedPartial]
@@ -966,41 +967,41 @@ theorem baseline_below_one_floor_recurrence_step_nonpos
 /-- Every computed term in a concrete below-one direct-weight trace is non-positive. -/
 theorem baseline_below_one_floor_recurrence_terms_nonpos
     (coefficientProduct multiplied computedTerm : ℕ → ℤ)
-    {weight computedBase : ℝ}
+    {n : ℕ} {weight computedBase : ℝ}
     (hweight0 : 0 ≤ weight) (hweight1 : weight ≤ 1)
     (hbase1 : computedBase ≤ 1)
     (hfirstFloor :
       IsFloor (computedTerm 1)
         (exactInputBinomialTerm weight computedBase 1))
-    (hcoefficientFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hcoefficientFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (coefficientProduct (k + 1))
         ((BONE : ℝ) * (weight - (k : ℝ)) * (computedBase - 1)))
-    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (multiplied (k + 1))
         ((computedTerm k : ℝ) * (coefficientProduct (k + 1) : ℝ) /
           (BONE : ℝ)))
-    (hdivideTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hdivideTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (computedTerm (k + 1))
         ((multiplied (k + 1) : ℝ) / ((k : ℝ) + 1))) :
-    ∀ k, 1 ≤ k → k ≤ 50 → (computedTerm k : ℝ) ≤ 0 := by
+    ∀ k, 1 ≤ k → k ≤ n → (computedTerm k : ℝ) ≤ 0 := by
   intro k
   induction k with
   | zero =>
       intro hk
       omega
   | succ k ih =>
-      intro hk hk50
+      intro hk hkn
       by_cases hk0 : k = 0
       · subst k
         exact le_trans hfirstFloor.le
           (exactInputBinomialTerm_nonpos hweight0 hweight1 hbase1 (by norm_num))
       · have hk1 : 1 ≤ k := Nat.one_le_iff_ne_zero.mpr hk0
-        have hklt50 : k < 50 := by omega
+        have hkltn : k < n := by omega
         exact baseline_below_one_floor_recurrence_step_nonpos
           hk1 hweight1 hbase1 (ih hk1 (by omega))
-            (hcoefficientFloor k hk1 hklt50)
-            (hmultiplyTermFloor k hk1 hklt50)
-            (hdivideTermFloor k hk1 hklt50)
+            (hcoefficientFloor k hk1 hkltn)
+            (hmultiplyTermFloor k hk1 hkltn)
+            (hdivideTermFloor k hk1 hkltn)
 
 /-- A power rounded below the exact adjusted power cannot undercharge LP tokens. -/
 theorem single_sided_token_withdrawal_pool_favoring_power_has_no_adverse_error
@@ -1373,14 +1374,14 @@ theorem baseline_single_sided_token_withdrawal_later_adverse_error_lt_five_perce
     (hfirstFloor :
       IsFloor (computedTerm 1)
         (exactInputBinomialTerm weight computedBase 1))
-    (hcoefficientFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hcoefficientFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (coefficientProduct (k + 1))
         ((BONE : ℝ) * (weight - (k : ℝ)) * (computedBase - 1)))
-    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (multiplied (k + 1))
         ((computedTerm k : ℝ) * (coefficientProduct (k + 1) : ℝ) /
           (BONE : ℝ)))
-    (hdivideTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hdivideTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (computedTerm (k + 1))
         ((multiplied (k + 1) : ℝ) / ((k : ℝ) + 1)))
     (hcomputedFractional :
@@ -1407,7 +1408,7 @@ theorem baseline_single_sided_token_withdrawal_later_adverse_error_lt_five_perce
   · have hcpow :=
       baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_five_percent_min_fee
         coefficientProduct multiplied computedTerm hweightLower hweightUpper
-          hbaseHalf hcaller.2.2.2.2 hn3 hcontinued hfirstFloor
+          hbaseHalf hcaller.2.2.2.2 hn3 hn50 hcontinued hfirstFloor
           hcoefficientFloor hmultiplyTermFloor hdivideTermFloor
           hcomputedFractional hcomputedPower hcomposedFloor
     exact single_sided_token_withdrawal_from_fixed_point_refinements
@@ -1430,7 +1431,8 @@ theorem baseline_single_sided_token_withdrawal_later_adverse_error_lt_five_perce
         hweightLower hweightUpper hadjustedPositive hadjustedBounds.2
           hbasePositive hbaseLe
     have htermsNonpos := baseline_below_one_floor_recurrence_terms_nonpos
-      coefficientProduct multiplied computedTerm hweights.1.le hweights.2.le
+      coefficientProduct multiplied computedTerm (n := n)
+        hweights.1.le hweights.2.le
         hcaller.2.2.2.2.le hfirstFloor hcoefficientFloor hmultiplyTermFloor
         hdivideTermFloor
     have hsumTailNonpos :
@@ -1440,14 +1442,14 @@ theorem baseline_single_sided_token_withdrawal_later_adverse_error_lt_five_perce
       have hkUpper : k + 2 ≤ n := by
         have hkBound : k < n - 1 := Finset.mem_range.mp hk
         omega
-      exact htermsNonpos (k + 2) (by omega) (le_trans hkUpper hn50)
+      exact htermsNonpos (k + 2) (by omega) hkUpper
     have hsumFirst :
         ∑ k ∈ Finset.range n, (computedTerm (k + 1) : ℝ) ≤
           (computedTerm 1 : ℝ) := by
       rw [show n = (n - 1) + 1 by omega, Finset.sum_range_succ']
       simpa [add_assoc] using add_le_add_left hsumTailNonpos (computedTerm 1 : ℝ)
     have hlastNonpos : (computedTerm n : ℝ) ≤ 0 :=
-      htermsNonpos n (by omega) hn50
+      htermsNonpos n (by omega) le_rfl
     have hcomputedFirst :
         computedPower ≤
           (BONE : ℝ) + exactInputBinomialTerm weight computedBase 1 := by
