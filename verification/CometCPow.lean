@@ -25,5 +25,6 @@ import CometCPow.SingleSidedTokenDepositSource
 import CometCPow.SingleSidedTokenWithdrawal
 import CometCPow.SingleSidedTokenWithdrawalSource
 import CometCPow.ProportionalLiquidity
+import CometCPow.ProportionalLiquiditySource
 import CometCPow.SpotPrice
 import CometCPow.SpotPriceSource
