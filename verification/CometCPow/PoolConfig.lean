@@ -61,6 +61,27 @@ theorem configured_exact_output_computed_displacement_lt
   rw [abs_of_nonneg (sub_nonneg.mpr hbaseLower)]
   linarith
 
+/-- The exact configured output limit sharpens that displacement below `0.500001`. -/
+theorem configured_exact_output_computed_displacement_lt_precise
+    {nominalRatio computedBase : ℝ}
+    (hratioUpper : nominalRatio ≤ (MAX_OUT_RATIO : ℝ) / STROOP)
+    (hbaseLower : 1 ≤ computedBase)
+    (hceil :
+      computedBase < 1 / (1 - nominalRatio) + 1 / (BONE : ℝ)) :
+    |computedBase - 1| < 500001 / 1000000 := by
+  have hmaxDenom : 0 < 1 - (MAX_OUT_RATIO : ℝ) / STROOP := by
+    norm_num [MAX_OUT_RATIO, STROOP]
+  have hdenomOrder :
+      1 - (MAX_OUT_RATIO : ℝ) / STROOP ≤ 1 - nominalRatio := by
+    linarith
+  have hinverseOrder := one_div_le_one_div_of_le hmaxDenom hdenomOrder
+  have hconfigured :
+      1 / (1 - (MAX_OUT_RATIO : ℝ) / STROOP) + 1 / (BONE : ℝ) <
+        1500001 / 1000000 := by
+    norm_num [MAX_OUT_RATIO, STROOP, BONE]
+  rw [abs_of_nonneg (sub_nonneg.mpr hbaseLower)]
+  linarith
+
 /--
 Bridge the configured output-ratio limit and a sub-unit ceiling refinement to
 the two bounds consumed by the exact-output fee theorem. The small positive
@@ -236,6 +257,50 @@ theorem configured_continued_exact_output_displacement_le
     linarith
   have hid : (50 / 33 : ℝ) + 4 / 825 = 38 / 25 := by norm_num
   rw [← hid]
+  nlinarith
+
+/-- Under continuation, the rounded displacement is at most `1.500001 * ratio`. -/
+theorem configured_continued_exact_output_displacement_le_precise
+    {nominalRatio computedBase : ℝ}
+    (hratioLower : 1 / 20000000000 ≤ nominalRatio)
+    (hratioUpper : nominalRatio ≤ (MAX_OUT_RATIO : ℝ) / STROOP)
+    (hceil :
+      computedBase < 1 / (1 - nominalRatio) + 1 / (BONE : ℝ)) :
+    computedBase - 1 ≤ (1500001 / 1000000 : ℝ) * nominalRatio := by
+  have hmaxDenom : 0 < 1 - (MAX_OUT_RATIO : ℝ) / STROOP := by
+    norm_num [MAX_OUT_RATIO, STROOP]
+  have hdenomOrder :
+      1 - (MAX_OUT_RATIO : ℝ) / STROOP ≤ 1 - nominalRatio := by
+    linarith
+  have hinverseOrder := one_div_le_one_div_of_le hmaxDenom hdenomOrder
+  have hinverseMax :
+      1 / (1 - (MAX_OUT_RATIO : ℝ) / STROOP) <
+        (7500001 / 5000000 : ℝ) := by
+    norm_num [MAX_OUT_RATIO, STROOP]
+  have hinverse : 1 / (1 - nominalRatio) < (7500001 / 5000000 : ℝ) :=
+    lt_of_le_of_lt hinverseOrder hinverseMax
+  have hratio0 : 0 < nominalRatio := lt_of_lt_of_le (by norm_num) hratioLower
+  have hgap : 1 / (BONE : ℝ) ≤ (1 / 50000000 : ℝ) * nominalRatio := by
+    calc
+      1 / (BONE : ℝ) =
+          (1 / 50000000 : ℝ) * (1 / 20000000000 : ℝ) := by
+        norm_num [BONE]
+      _ ≤ (1 / 50000000 : ℝ) * nominalRatio :=
+        mul_le_mul_of_nonneg_left hratioLower (by norm_num)
+  have hdisplacement :
+      computedBase - 1 <
+        (7500001 / 5000000 : ℝ) * nominalRatio + 1 / BONE := by
+    have hdenom : 0 < 1 - nominalRatio :=
+      lt_of_lt_of_le hmaxDenom hdenomOrder
+    have hid : 1 / (1 - nominalRatio) - 1 =
+        nominalRatio / (1 - nominalRatio) := by
+      field_simp
+    have hratioInverse :
+        nominalRatio / (1 - nominalRatio) <
+          (7500001 / 5000000 : ℝ) * nominalRatio := by
+      have hmul := mul_lt_mul_of_pos_left hinverse hratio0
+      simpa [div_eq_mul_inv, mul_assoc, mul_left_comm, mul_comm] using hmul
+    linarith
   nlinarith
 
 /-- Direct single-sided input displacement stays inside the common operating band. -/

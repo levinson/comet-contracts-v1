@@ -33,6 +33,26 @@ noncomputable def exactOutputMinimumFeePowerValue
     (exponent nominalRatio : ℝ) : ℝ :=
   MIN_FEE_RATE * ((BONE : ℝ) * exponent * nominalRatio)
 
+/--
+The precise path factors compose below this `4.501%` strict rational ceiling
+on exact-output swap adverse approximation error.
+-/
+noncomputable def EXACT_OUTPUT_ADVERSE_FEE_SHARE : ℝ :=
+  4501 / 100000
+
+/-- The path-specific fractional recurrence budget relative to the minimum fee. -/
+noncomputable def EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE : ℝ :=
+  MIN_FEE_RATE * (30001 / 1000000)
+
+theorem exact_output_adverse_fee_share_value :
+    EXACT_OUTPUT_ADVERSE_FEE_SHARE = (4501 : ℝ) / 100000 := by
+  rfl
+
+theorem exact_output_precise_fractional_fee_rate_value :
+    EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE = (30001 : ℝ) / 1000000000000 := by
+  norm_num [EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE,
+    MIN_FEE_RATE, MIN_FEE, STROOP]
+
 /-- A normalized exact-output base ceiling is above both the ideal base and one. -/
 theorem exact_output_base_ceil_refines
     {nominalRatio computedBase : ℝ} {computedBaseRaw : ℤ}
@@ -122,8 +142,8 @@ Compose a raw `c_pow` error bound with the ideal exact-output formula and all
 caller ceilings.  The resulting comparison is in the token's downscaled
 unit and uses the path's actual fee-adjustment denominator.
 -/
-theorem swap_exact_amount_out_adverse_error_lt_five_percent_min_fee
-    {feeRate nominalRatio computedBase computedExponent idealExponent
+theorem swap_exact_amount_out_adverse_error_lt_fee_share
+    {feeShare feeRate nominalRatio computedBase computedExponent idealExponent
       computedPower inputBalance scale computedInput : ℝ}
     (hfeeUpper : feeRate < 1)
     (hratio0 : 0 ≤ nominalRatio) (hratio1 : nominalRatio < 1)
@@ -132,15 +152,15 @@ theorem swap_exact_amount_out_adverse_error_lt_five_percent_min_fee
     (hexponent : idealExponent ≤ computedExponent)
     (hcpow :
       (BONE : ℝ) * computedBase ^ computedExponent - computedPower <
-        exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20)
+        feeShare * exactOutputMinimumFeePowerValue idealExponent nominalRatio)
     (hinputBalance : 0 < inputBalance) (hscale : 0 < scale)
     (hcomputedInput :
       inputBalance / scale * (computedPower / (BONE : ℝ) - 1) /
         (1 - feeRate) ≤ computedInput) :
     exactOutputIdealInput (inputBalance / scale) feeRate nominalRatio idealExponent -
         computedInput <
-      exactOutputAdjustedMinimumFeeInputValue
-        (inputBalance / scale) feeRate idealExponent nominalRatio / 20 := by
+      feeShare * exactOutputAdjustedMinimumFeeInputValue
+        (inputBalance / scale) feeRate idealExponent nominalRatio := by
   have hdenom : 0 < 1 - feeRate := by linarith
   have hB : (0 : ℝ) < BONE := by norm_num [BONE]
   have hidealBaseOne : 1 ≤ exactOutputIdealBase nominalRatio := by
@@ -155,7 +175,7 @@ theorem swap_exact_amount_out_adverse_error_lt_five_percent_min_fee
   have hadversePower :
       (BONE : ℝ) * exactOutputIdealBase nominalRatio ^ idealExponent -
           computedPower <
-        exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20 := by
+        feeShare * exactOutputMinimumFeePowerValue idealExponent nominalRatio := by
     linarith
   have hcallerScale : 0 < inputBalance / scale / (BONE : ℝ) / (1 - feeRate) :=
     div_pos (div_pos (div_pos hinputBalance hscale) hB) hdenom
@@ -173,17 +193,17 @@ theorem swap_exact_amount_out_adverse_error_lt_five_percent_min_fee
       field_simp [ne_of_gt hB, ne_of_gt hdenom, ne_of_gt hscale]
       ring
     _ < (inputBalance / scale / (BONE : ℝ) / (1 - feeRate)) *
-        (exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20) := hscaled
-    _ = exactOutputAdjustedMinimumFeeInputValue
-          (inputBalance / scale) feeRate idealExponent nominalRatio / 20 := by
+        (feeShare * exactOutputMinimumFeePowerValue idealExponent nominalRatio) := hscaled
+    _ = feeShare * exactOutputAdjustedMinimumFeeInputValue
+          (inputBalance / scale) feeRate idealExponent nominalRatio := by
       rw [exactOutputMinimumFeePowerValue,
         exactOutputAdjustedMinimumFeeInputValue]
       field_simp [ne_of_gt hB, ne_of_gt hdenom, ne_of_gt hscale]
       ring
 
 /-- Instantiate the operation theorem from the exact-output caller refinements. -/
-theorem swap_exact_amount_out_from_fixed_point_refinements
-    {inputBalance outputBalance outputAmount nominalRatio feeRate computedBase
+theorem swap_exact_amount_out_from_fixed_point_refinements_fee_share
+    {feeShare inputBalance outputBalance outputAmount nominalRatio feeRate computedBase
       idealExponent computedExponent computedPower scale : ℝ}
     {computedBaseRaw computedExponentRaw tokenAmountIn adjustedInput output : ℤ}
     (hinputBalance : 0 < inputBalance) (houtputBalance : 0 < outputBalance)
@@ -201,7 +221,7 @@ theorem swap_exact_amount_out_from_fixed_point_refinements
       IsCeil computedExponentRaw ((STROOP : ℝ) * idealExponent))
     (hcpow :
       (BONE : ℝ) * computedBase ^ computedExponent - computedPower <
-        exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20)
+        feeShare * exactOutputMinimumFeePowerValue idealExponent nominalRatio)
     (hscale : 0 < scale)
     (hmulCeil :
       IsCeil tokenAmountIn
@@ -211,8 +231,8 @@ theorem swap_exact_amount_out_from_fixed_point_refinements
     (hdownscaleCeil : IsCeil output ((adjustedInput : ℝ) / scale)) :
     exactOutputIdealInput (inputBalance / scale) feeRate nominalRatio idealExponent -
         (output : ℝ) <
-      exactOutputAdjustedMinimumFeeInputValue
-        (inputBalance / scale) feeRate idealExponent nominalRatio / 20 := by
+      feeShare * exactOutputAdjustedMinimumFeeInputValue
+        (inputBalance / scale) feeRate idealExponent nominalRatio := by
   have hratio0 : 0 ≤ nominalRatio := by
     rw [hnominal]
     positivity
@@ -222,7 +242,7 @@ theorem swap_exact_amount_out_from_fixed_point_refinements
     hcomputedExponent hexponentCeil
   have hinput := exact_output_input_ceil_chain
     hfeeUpper hscale hmulCeil hfeeCeil hdownscaleCeil
-  exact swap_exact_amount_out_adverse_error_lt_five_percent_min_fee
+  exact swap_exact_amount_out_adverse_error_lt_fee_share
     hfeeUpper hratio0 hratio1 hidealExponent0 hbase.1 hexponent.1 hcpow
       hinputBalance hscale hinput
 
@@ -332,23 +352,54 @@ theorem exact_output_upper_composition_adverse_le
       sub_le_sub_left hproduct _
     _ = wholeExact * (exactFractional - computedFractional) := by ring
 
-/-- The sharpened base and exponent ceilings leave strict room below five percent. -/
-theorem exact_output_weighted_first_term_fee_scale_lt
+/-- The precise output displacement leaves a `3.0001%` fractional fee-rate budget. -/
+theorem accumulated_error_lt_exact_output_precise_fractional_fee_of_later_terms
+    {n : ℕ} {firstTerm : ℝ}
+    (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
+    (hcontinue :
+      (CPOW_PRECISION : ℝ) <
+        firstTerm * ((500001 : ℝ) / 1000000 / 2) *
+            ((500001 : ℝ) / 1000000) ^ (n - 3) +
+          (3 * ((n - 1 : ℕ) : ℝ) - 2)) :
+    accumulatedError n <
+      EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE * firstTerm := by
+  interval_cases n <;>
+    norm_num [accumulatedError, EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE,
+      MIN_FEE_RATE, MIN_FEE, STROOP, CPOW_PRECISION] at hcontinue ⊢ <;>
+    linarith
+
+/-- The same precise continuation estimate forces the first term above precision. -/
+theorem exact_output_precise_continuation_forces_first_term_above_precision
+    {n : ℕ} {firstTerm : ℝ}
+    (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
+    (hcontinue :
+      (CPOW_PRECISION : ℝ) <
+        firstTerm * ((500001 : ℝ) / 1000000 / 2) *
+            ((500001 : ℝ) / 1000000) ^ (n - 3) +
+          (3 * ((n - 1 : ℕ) : ℝ) - 2)) :
+    (CPOW_PRECISION : ℝ) < firstTerm := by
+  interval_cases n <;>
+    norm_num [CPOW_PRECISION] at hcontinue ⊢ <;>
+    linarith
+
+/-- The precise base and exponent ceilings retain the `4.501%` margin. -/
+theorem exact_output_weighted_first_term_fee_scale_lt_precise_share
     {weightedFraction idealExponent displacement nominalRatio : ℝ}
     (hweighted :
       weightedFraction ≤ (1000001 / 1000000 : ℝ) * idealExponent)
     (hidealPositive : 0 < idealExponent)
     (hratioPositive : 0 < nominalRatio)
     (hdisplacement0 : 0 ≤ displacement)
-    (hdisplacement : displacement ≤ (38 / 25 : ℝ) * nominalRatio) :
-    THIRTY_SECOND_MIN_FEE_RATE *
+    (hdisplacement :
+      displacement ≤ (1500001 / 1000000 : ℝ) * nominalRatio) :
+    EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE *
         ((BONE : ℝ) * weightedFraction * displacement) <
-      exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20 := by
-  have hratioScaled0 : 0 ≤ (38 / 25 : ℝ) * nominalRatio := by positivity
+      EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+        exactOutputMinimumFeePowerValue idealExponent nominalRatio := by
   have hproduct :
       weightedFraction * displacement ≤
         ((1000001 / 1000000 : ℝ) * idealExponent) *
-          ((38 / 25 : ℝ) * nominalRatio) :=
+          ((1500001 / 1000000 : ℝ) * nominalRatio) :=
     mul_le_mul hweighted hdisplacement hdisplacement0
       (mul_nonneg (by norm_num) (le_of_lt hidealPositive))
   have hB0 : (0 : ℝ) ≤ BONE := by norm_num [BONE]
@@ -356,44 +407,46 @@ theorem exact_output_weighted_first_term_fee_scale_lt
       (BONE : ℝ) * weightedFraction * displacement ≤
         (BONE : ℝ) *
           (((1000001 / 1000000 : ℝ) * idealExponent) *
-            ((38 / 25 : ℝ) * nominalRatio)) := by
+            ((1500001 / 1000000 : ℝ) * nominalRatio)) := by
     nlinarith only [mul_le_mul_of_nonneg_left hproduct hB0]
-  have hrate0 : 0 ≤ THIRTY_SECOND_MIN_FEE_RATE := by
-    rw [thirty_second_minimum_fee_rate_value]
+  have hrate0 : 0 ≤ EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE := by
+    rw [exact_output_precise_fractional_fee_rate_value]
     norm_num
   have hscaleUpper := mul_le_mul_of_nonneg_left hscaled hrate0
   have hpositive : 0 < (BONE : ℝ) * idealExponent * nominalRatio :=
     mul_pos (mul_pos (by norm_num [BONE]) hidealPositive) hratioPositive
   have hconstant :
-      THIRTY_SECOND_MIN_FEE_RATE *
-          ((1000001 / 1000000 : ℝ) * (38 / 25 : ℝ)) <
-        MIN_FEE_RATE / 20 := by
-    rw [thirty_second_minimum_fee_rate_value, minimum_fee_rate_value]
+      EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE *
+          ((1000001 / 1000000 : ℝ) * (1500001 / 1000000 : ℝ)) <
+        EXACT_OUTPUT_ADVERSE_FEE_SHARE * MIN_FEE_RATE := by
+    rw [exact_output_precise_fractional_fee_rate_value,
+      exact_output_adverse_fee_share_value, minimum_fee_rate_value]
     norm_num
   have hstrict := mul_lt_mul_of_pos_right hconstant hpositive
   rw [exactOutputMinimumFeePowerValue]
   calc
-    THIRTY_SECOND_MIN_FEE_RATE *
+    EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE *
           ((BONE : ℝ) * weightedFraction * displacement) ≤
-        THIRTY_SECOND_MIN_FEE_RATE *
+        EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE *
           ((BONE : ℝ) *
             (((1000001 / 1000000 : ℝ) * idealExponent) *
-              ((38 / 25 : ℝ) * nominalRatio))) := hscaleUpper
-    _ = (THIRTY_SECOND_MIN_FEE_RATE *
-          ((1000001 / 1000000 : ℝ) * (38 / 25 : ℝ))) *
+              ((1500001 / 1000000 : ℝ) * nominalRatio))) := hscaleUpper
+    _ = (EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE *
+          ((1000001 / 1000000 : ℝ) * (1500001 / 1000000 : ℝ))) *
         ((BONE : ℝ) * idealExponent * nominalRatio) := by ring
-    _ < (MIN_FEE_RATE / 20) *
+    _ < (EXACT_OUTPUT_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
         ((BONE : ℝ) * idealExponent * nominalRatio) := hstrict
-    _ = MIN_FEE_RATE * ((BONE : ℝ) * idealExponent * nominalRatio) / 20 := by ring
+    _ = EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+        (MIN_FEE_RATE * ((BONE : ℝ) * idealExponent * nominalRatio)) := by ring
 
 /-
 For small output ratios the whole power is below two, and `whole * a` is
-bounded by the full exponent.  For larger ratios the universal raw rounding
-cap (`3151`) is already tiny compared with five percent of the fee scale.
+bounded by the full exponent. For larger ratios the universal raw rounding
+cap (`3151`) is already below the precise fee share.
 -/
 
 /-- Compose a later fractional exact-output bound through the whole baseline `c_pow`. -/
-theorem baseline_exact_output_cpow_adverse_error_lt_five_percent_min_fee
+theorem baseline_exact_output_cpow_adverse_error_lt_precise_fee_share
     {integerPart : ℕ}
     {a computedExponent idealExponent computedBase nominalRatio
       computedFractional wholeComputed computedPower : ℝ}
@@ -409,18 +462,19 @@ theorem baseline_exact_output_cpow_adverse_error_lt_five_percent_min_fee
     (hbaseCeilUpper :
       computedBase < 1 / (1 - nominalRatio) + 1 / (BONE : ℝ))
     (hdisplacement :
-      computedBase - 1 ≤ (38 / 25 : ℝ) * nominalRatio)
+      computedBase - 1 ≤ (1500001 / 1000000 : ℝ) * nominalRatio)
     (hcomputedFractional0 : 0 ≤ computedFractional)
     (hwholeUpper : computedBase ^ integerPart ≤ wholeComputed)
     (hcomposedUpper : wholeComputed * computedFractional ≤ computedPower)
     (hfractionalFee :
       (BONE : ℝ) * computedBase ^ a - computedFractional <
-        THIRTY_SECOND_MIN_FEE_RATE *
+        EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE *
           ((BONE : ℝ) * a * (computedBase - 1)))
     (hfractionalCap :
       (BONE : ℝ) * computedBase ^ a - computedFractional < 3151) :
     (BONE : ℝ) * computedBase ^ computedExponent - computedPower <
-      exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20 := by
+      EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+        exactOutputMinimumFeePowerValue idealExponent nominalRatio := by
   let wholeExact : ℝ := computedBase ^ integerPart
   let exactFractional : ℝ := (BONE : ℝ) * computedBase ^ a
   have hbase0 : 0 < computedBase := lt_of_lt_of_le (by norm_num) hbaseOne
@@ -447,12 +501,13 @@ theorem baseline_exact_output_cpow_adverse_error_lt_five_percent_min_fee
     have hwhole : wholeExact = 1 := by simp [wholeExact]
     have haAdjusted := exact_output_fractional_exponent_le_adjusted_ideal
       hcomputedExponentSplit hcomputedExponentUpper hidealExponentLower
-    have hfeeScale := exact_output_weighted_first_term_fee_scale_lt
+    have hfeeScale := exact_output_weighted_first_term_fee_scale_lt_precise_share
       (le_of_lt haAdjusted) hidealPositive hratioPositive
         hdisplacement0 hdisplacement
     have hscaledFractional :
         wholeExact * (exactFractional - computedFractional) <
-          exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20 := by
+          EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+            exactOutputMinimumFeePowerValue idealExponent nominalRatio := by
       rw [hwhole]
       norm_num
       exact lt_trans hfractionalFee hfeeScale
@@ -485,15 +540,15 @@ theorem baseline_exact_output_cpow_adverse_error_lt_five_percent_min_fee
             _ = (1000001 / 1000000 : ℝ) * idealExponent := by ring
         rw [← hcomputedExponentSplit] at hwholeA
         exact le_trans hwholeA (le_of_lt hcomputedAdjusted)
-      have hfeeScale := exact_output_weighted_first_term_fee_scale_lt
+      have hfeeScale := exact_output_weighted_first_term_fee_scale_lt_precise_share
         hweightedAdjusted hidealPositive hratioPositive
           hdisplacement0 hdisplacement
       have hscaledFractional := mul_lt_mul_of_pos_left hfractionalFee hwhole0
       have hrearrange :
           wholeExact *
-              (THIRTY_SECOND_MIN_FEE_RATE *
+              (EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE *
                 ((BONE : ℝ) * a * (computedBase - 1))) =
-            THIRTY_SECOND_MIN_FEE_RATE *
+            EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE *
               ((BONE : ℝ) * (wholeExact * a) * (computedBase - 1)) := by ring
       rw [hrearrange] at hscaledFractional
       exact lt_of_le_of_lt hcomposition (lt_trans hscaledFractional hfeeScale)
@@ -519,12 +574,14 @@ theorem baseline_exact_output_cpow_adverse_error_lt_five_percent_min_fee
         have hsecond := mul_le_mul_of_nonneg_left hratioLarge (le_of_lt hidealPositive)
         nlinarith
       have hfeeLarge :
-          (450000 : ℝ) <
-            exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20 := by
-        rw [exactOutputMinimumFeePowerValue, minimum_fee_rate_value]
+          (400000 : ℝ) <
+            EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+              exactOutputMinimumFeePowerValue idealExponent nominalRatio := by
+        rw [exact_output_adverse_fee_share_value,
+          exactOutputMinimumFeePowerValue, minimum_fee_rate_value]
         norm_num [BONE] at ⊢
         nlinarith
-      have hnumeric : (64 : ℝ) * 3151 < 450000 := by norm_num
+      have hnumeric : (64 : ℝ) * 3151 < 400000 := by norm_num
       exact lt_of_le_of_lt hcomposition
         (lt_trans hcap (lt_trans hnumeric hfeeLarge))
 
@@ -560,7 +617,7 @@ Taylor partial.
 -/
 
 /-- Full later-term baseline `c_pow` bound for the exact-output configuration. -/
-theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
+theorem baseline_exact_output_cpow_later_adverse_error_lt_precise_fee_share
     (coefficientProduct multiplied computedTerm : ℕ → ℤ)
     {n degree oddIndex integerPart : ℕ}
     {nominalRatio computedBase idealExponent computedExponent a
@@ -607,7 +664,8 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
     (hcomposedCeil :
       IsCeil computedPowerRaw (wholeComputed * computedFractional)) :
     (BONE : ℝ) * computedBase ^ computedExponent - computedPower <
-      exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20 := by
+      EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+        exactOutputMinimumFeePowerValue idealExponent nominalRatio := by
   have hratio1 : nominalRatio < 1 := by
     have hmax : (MAX_OUT_RATIO : ℝ) / STROOP < 1 := by
       norm_num [MAX_OUT_RATIO, STROOP]
@@ -620,7 +678,7 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
     rw [hcomputedBase]
     exact normalized_ceil_lt_exact_add_inv_scale
       (by norm_num [BONE]) hbaseCeil
-  have hbaseDisplacement := configured_exact_output_computed_displacement_lt
+  have hbaseDisplacement := configured_exact_output_computed_displacement_lt_precise
     hratioUpper hbase.2 hceilUpper
   let T : ℕ → ℝ := exactOutputBinomialTerm a computedBase
   let U : ℕ → ℝ := fun k ↦ (computedTerm k : ℝ)
@@ -643,7 +701,7 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
   have hfirstBelowScale : |T 1| < BONE := by
     rw [hfirstMagnitude]
     have hproduct : a * (computedBase - 1) < 1 := by
-      have hq : computedBase - 1 < 51 / 100 := by
+      have hq : computedBase - 1 < 500001 / 1000000 := by
         rw [abs_of_nonneg (sub_nonneg.mpr hbase.2)] at hbaseDisplacement
         exact hbaseDisplacement
       have hmul : a * (computedBase - 1) ≤ 1 * (computedBase - 1) :=
@@ -651,16 +709,17 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
       linarith
     have hB : (0 : ℝ) < BONE := by norm_num [BONE]
     simpa only [mul_assoc, mul_one] using mul_lt_mul_of_pos_left hproduct hB
-  have hx : |computedBase - 1| ≤ (51 / 100 : ℝ) := le_of_lt hbaseDisplacement
+  have hx : |computedBase - 1| ≤ (500001 / 1000000 : ℝ) :=
+    le_of_lt hbaseDisplacement
   have hexactTermMagnitude : ∀ k, 1 ≤ k → |T k| < BONE := by
     intro k hk
     have hterms := fractional_binomial_terms_from_first_bound
       T ha0 ha1 hx hrec (k - 1)
     have hindex : k - 1 + 1 = k := by omega
     rw [hindex] at hterms
-    have hpower1 : (51 / 100 : ℝ) ^ (k - 1) ≤ 1 :=
+    have hpower1 : (500001 / 1000000 : ℝ) ^ (k - 1) ≤ 1 :=
       pow_le_one₀ (by norm_num) (by norm_num)
-    have hscale : |T 1| * (51 / 100 : ℝ) ^ (k - 1) ≤ |T 1| := by
+    have hscale : |T 1| * (500001 / 1000000 : ℝ) ^ (k - 1) ≤ |T 1| := by
       nlinarith [abs_nonneg (T 1)]
     exact lt_of_le_of_lt (le_trans hterms hscale) hfirstBelowScale
   have herrorRec : ∀ k, 1 ≤ k → k < n →
@@ -694,7 +753,7 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
     dsimp [T]
     simp
   have hbaseUpperOperating : computedBase ≤ (8 / 5 : ℝ) := by
-    have hq : computedBase - 1 < 51 / 100 := by
+    have hq : computedBase - 1 < 500001 / 1000000 := by
       rw [abs_of_nonneg (sub_nonneg.mpr hbase.2)] at hbaseDisplacement
       exact hbaseDisplacement
     linarith
@@ -719,7 +778,7 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
   have hcontinue := continued_loop_forces_sharp_first_term_scale
     T ha0 ha1 hx (by norm_num) hrec hn3 hprevious htermError
   have hfirstLarge : (CPOW_PRECISION : ℝ) < |T 1| :=
-    sharp_continuation_forces_first_term_above_precision
+    exact_output_precise_continuation_forces_first_term_above_precision
       hn3 hn46 (by simpa using hcontinue)
   have hbaseStrict : 1 < computedBase := by
     have hpositiveProduct : 0 < a * (computedBase - 1) := by
@@ -755,11 +814,11 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
     convert hsumRaw using 1
     simp [U, Nat.add_comm]
   have herrorMono := accumulated_error_mono hdegree1 hdegreeN
-  have hbudget := accumulated_error_lt_thirty_second_min_fee_of_later_terms
+  have hbudget := accumulated_error_lt_exact_output_precise_fractional_fee_of_later_terms
     hn3 hn46 (by simpa using hcontinue)
   have hfractionalFee :
       (BONE : ℝ) * computedBase ^ a - computedFractional <
-        THIRTY_SECOND_MIN_FEE_RATE *
+        EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE *
           ((BONE : ℝ) * a * (computedBase - 1)) := by
     have hadverse :
         (BONE : ℝ) * computedBase ^ a - computedFractional <
@@ -796,7 +855,7 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
     linarith
   have hratioLower := continued_exact_output_forces_nominal_ratio_lower_sharp
     hratio0 hratioUpper hbase.2 hceilUpper ha1 hfirstMagnitude hfirstLarge
-  have hdisplacement := configured_continued_exact_output_displacement_le
+  have hdisplacement := configured_continued_exact_output_displacement_le_precise
     hratioLower hratioUpper hceilUpper
   have hbaseUpper : computedBase < 151 / 100 := by
     have hq := hbaseDisplacement
@@ -810,13 +869,13 @@ theorem baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
   have hcomposedUpper : wholeComputed * computedFractional ≤ computedPower := by
     rw [hcomputedPower]
     exact hcomposedCeil.le
-  exact baseline_exact_output_cpow_adverse_error_lt_five_percent_min_fee
+  exact baseline_exact_output_cpow_adverse_error_lt_precise_fee_share
     ha0 ha1 hcomputedExponentSplit hidealExponentLower hexponent.2
       hintegerPart hratioPositive hbase.2 hbaseUpper hceilUpper hdisplacement
       hcomputedFractional0 hwholeUpper hcomposedUpper hfractionalFee hfractionalCap
 
 /-- Complete later-term `swap_exact_amount_out` comparison for the modeled caller. -/
-theorem baseline_swap_exact_amount_out_later_adverse_error_lt_five_percent_min_fee
+theorem baseline_swap_exact_amount_out_later_adverse_error_lt_precise_fee_share
     (coefficientProduct multiplied computedTerm : ℕ → ℤ)
     {n degree oddIndex integerPart : ℕ}
     {inputBalance outputBalance outputAmount nominalRatio feeRate computedBase
@@ -875,22 +934,24 @@ theorem baseline_swap_exact_amount_out_later_adverse_error_lt_five_percent_min_f
     (hdownscaleCeil : IsCeil output ((adjustedInput : ℝ) / scale)) :
     exactOutputIdealInput (inputBalance / scale) feeRate nominalRatio idealExponent -
         (output : ℝ) <
-      exactOutputAdjustedMinimumFeeInputValue
-        (inputBalance / scale) feeRate idealExponent nominalRatio / 20 := by
+      EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+        exactOutputAdjustedMinimumFeeInputValue
+          (inputBalance / scale) feeRate idealExponent nominalRatio := by
   have hratio0 : 0 ≤ nominalRatio := by rw [hnominal]; positivity
   have hratioPositive : 0 < nominalRatio := by rw [hnominal]; positivity
   have hratio1 : nominalRatio < 1 := by
     have hmax : (MAX_OUT_RATIO : ℝ) / STROOP < 1 := by
       norm_num [MAX_OUT_RATIO, STROOP]
     exact lt_of_le_of_lt hratioUpper hmax
-  have hcpow := baseline_exact_output_cpow_later_adverse_error_lt_five_percent_min_fee
+  have hcpow := baseline_exact_output_cpow_later_adverse_error_lt_precise_fee_share
     coefficientProduct multiplied computedTerm hratio0 hratioPositive
       hratioUpper hcomputedBase hbaseCeil hidealExponentLower
       hidealExponentUpper hcomputedExponent hexponentCeil ha0 ha1
       hcomputedExponentSplit hn3 hn50 hdegreeOdd hdegreeStop hcontinued
       hfirstFloor hcoefficientFloor hmultiplyTermFloor hdivideTermFloor
       hcomputedFractional hwholeTrace hcomputedPower hcomposedCeil
-  exact swap_exact_amount_out_from_fixed_point_refinements
+  exact swap_exact_amount_out_from_fixed_point_refinements_fee_share
+    (feeShare := EXACT_OUTPUT_ADVERSE_FEE_SHARE)
     hinputBalance houtputBalance houtputAmount.le hnominal hratio1 hfeeUpper
       (lt_of_lt_of_le (by norm_num) hidealExponentLower).le hcomputedBase
       hbaseCeil hcomputedExponent hexponentCeil hcpow hscale hmulCeil
@@ -956,7 +1017,7 @@ theorem baseline_exact_output_cpow_first_term_has_no_adverse_error
   exact le_trans hproduct hcomposed
 
 /-- At the second stop, removal of the negative term leaves less than the first floor unit. -/
-theorem baseline_exact_output_cpow_second_term_adverse_error_lt_five_percent_min_fee
+theorem baseline_exact_output_cpow_second_term_adverse_error_lt_precise_fee_share
     {integerPart : ℕ}
     {nominalRatio computedBase idealExponent computedExponent a
       wholeComputed computedPower : ℝ}
@@ -985,7 +1046,8 @@ theorem baseline_exact_output_cpow_second_term_adverse_error_lt_five_percent_min
       IsCeil computedPowerRaw
         (wholeComputed * ((BONE : ℝ) + (firstRounded : ℝ)))) :
     (BONE : ℝ) * computedBase ^ computedExponent - computedPower <
-      exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20 := by
+      EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+        exactOutputMinimumFeePowerValue idealExponent nominalRatio := by
   have hratio1 : nominalRatio < 1 := by
     have hmax : (MAX_OUT_RATIO : ℝ) / STROOP < 1 := by
       norm_num [MAX_OUT_RATIO, STROOP]
@@ -1003,9 +1065,9 @@ theorem baseline_exact_output_cpow_second_term_adverse_error_lt_five_percent_min
     positive_floor_above_threshold hfirstFloor hcontinued
   have hratioLower := continued_exact_output_forces_nominal_ratio_lower_sharp
     hratio0 hratioUpper hbase.2 hceilUpper ha1 rfl hfirstLarge
-  have hdisplacement := configured_continued_exact_output_displacement_le
+  have hdisplacement := configured_continued_exact_output_displacement_le_precise
     hratioLower hratioUpper hceilUpper
-  have hbaseDisplacement := configured_exact_output_computed_displacement_lt
+  have hbaseDisplacement := configured_exact_output_computed_displacement_lt_precise
     hratioUpper hbase.2 hceilUpper
   have hbaseUpper : computedBase < 151 / 100 := by
     have hq := hbaseDisplacement
@@ -1023,14 +1085,14 @@ theorem baseline_exact_output_cpow_second_term_adverse_error_lt_five_percent_min
       linarith [hfirstFloor.lt_add_one]
     linarith
   have honeFee :
-      (1 : ℝ) < THIRTY_SECOND_MIN_FEE_RATE *
+      (1 : ℝ) < EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE *
         ((BONE : ℝ) * a * (computedBase - 1)) := by
-    rw [thirty_second_minimum_fee_rate_value]
+    rw [exact_output_precise_fractional_fee_rate_value]
     norm_num [CPOW_PRECISION] at hfirstLarge ⊢
     linarith
   have hfractionalFee :
       (BONE : ℝ) * computedBase ^ a - computedFractional <
-        THIRTY_SECOND_MIN_FEE_RATE *
+        EXACT_OUTPUT_PRECISE_FRACTIONAL_FEE_RATE *
           ((BONE : ℝ) * a * (computedBase - 1)) :=
     lt_trans hfractionalOne honeFee
   have hfractionalCap :
@@ -1050,7 +1112,7 @@ theorem baseline_exact_output_cpow_second_term_adverse_error_lt_five_percent_min
     dsimp [computedFractional]
     rw [hcomputedPower]
     exact hcomposedCeil.le
-  exact baseline_exact_output_cpow_adverse_error_lt_five_percent_min_fee
+  exact baseline_exact_output_cpow_adverse_error_lt_precise_fee_share
     ha0 ha1 hcomputedExponentSplit hidealExponentLower hexponent.2
       hintegerPart hratioPositive hbase.2 hbaseUpper hceilUpper hdisplacement
       hcomputedFractional0 hwholeUpper hcomposedUpper hfractionalFee hfractionalCap
@@ -1077,7 +1139,7 @@ theorem exact_output_minimum_fee_power_value_positive
     (mul_pos (mul_pos (by norm_num [BONE]) hexponent) hratio)
 
 /-- Complete first-term exact-output comparison; its corrected `c_pow` is conservative. -/
-theorem baseline_swap_exact_amount_out_first_term_adverse_error_lt_five_percent_min_fee
+theorem baseline_swap_exact_amount_out_first_term_adverse_error_lt_precise_fee_share
     {integerPart : ℕ}
     {inputBalance outputBalance outputAmount nominalRatio feeRate computedBase
       idealExponent computedExponent a wholeComputed computedPower scale : ℝ}
@@ -1115,8 +1177,9 @@ theorem baseline_swap_exact_amount_out_first_term_adverse_error_lt_five_percent_
     (hdownscaleCeil : IsCeil output ((adjustedInput : ℝ) / scale)) :
     exactOutputIdealInput (inputBalance / scale) feeRate nominalRatio idealExponent -
         (output : ℝ) <
-      exactOutputAdjustedMinimumFeeInputValue
-        (inputBalance / scale) feeRate idealExponent nominalRatio / 20 := by
+      EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+        exactOutputAdjustedMinimumFeeInputValue
+          (inputBalance / scale) feeRate idealExponent nominalRatio := by
   have hratio0 : 0 ≤ nominalRatio := by rw [hnominal]; positivity
   have hratioPositive : 0 < nominalRatio := by rw [hnominal]; positivity
   have hratio1 : nominalRatio < 1 := by
@@ -1135,17 +1198,21 @@ theorem baseline_swap_exact_amount_out_first_term_adverse_error_lt_five_percent_
     hidealPositive hratioPositive
   have hcpow :
       (BONE : ℝ) * computedBase ^ computedExponent - computedPower <
-        exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20 := by
-    have hshare : 0 < exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20 :=
-      div_pos hfeePositive (by norm_num)
+        EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+          exactOutputMinimumFeePowerValue idealExponent nominalRatio := by
+    have hshare :
+        0 < EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+          exactOutputMinimumFeePowerValue idealExponent nominalRatio :=
+      mul_pos (by rw [exact_output_adverse_fee_share_value]; norm_num) hfeePositive
     linarith
-  exact swap_exact_amount_out_from_fixed_point_refinements
+  exact swap_exact_amount_out_from_fixed_point_refinements_fee_share
+    (feeShare := EXACT_OUTPUT_ADVERSE_FEE_SHARE)
     hinputBalance houtputBalance houtputAmount.le hnominal hratio1 hfeeUpper
       hidealPositive.le hcomputedBase hbaseCeil hcomputedExponent hexponentCeil
       hcpow hscale hmulCeil hfeeCeil hdownscaleCeil
 
 /-- Complete second-term exact-output comparison after removing the negative term. -/
-theorem baseline_swap_exact_amount_out_second_term_adverse_error_lt_five_percent_min_fee
+theorem baseline_swap_exact_amount_out_second_term_adverse_error_lt_precise_fee_share
     {integerPart : ℕ}
     {inputBalance outputBalance outputAmount nominalRatio feeRate computedBase
       idealExponent computedExponent a wholeComputed computedPower scale : ℝ}
@@ -1185,27 +1252,29 @@ theorem baseline_swap_exact_amount_out_second_term_adverse_error_lt_five_percent
     (hdownscaleCeil : IsCeil output ((adjustedInput : ℝ) / scale)) :
     exactOutputIdealInput (inputBalance / scale) feeRate nominalRatio idealExponent -
         (output : ℝ) <
-      exactOutputAdjustedMinimumFeeInputValue
-        (inputBalance / scale) feeRate idealExponent nominalRatio / 20 := by
+      EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+        exactOutputAdjustedMinimumFeeInputValue
+          (inputBalance / scale) feeRate idealExponent nominalRatio := by
   have hratio0 : 0 ≤ nominalRatio := by rw [hnominal]; positivity
   have hratioPositive : 0 < nominalRatio := by rw [hnominal]; positivity
   have hratio1 : nominalRatio < 1 := by
     have hmax : (MAX_OUT_RATIO : ℝ) / STROOP < 1 := by
       norm_num [MAX_OUT_RATIO, STROOP]
     exact lt_of_le_of_lt hratioUpper hmax
-  have hcpow := baseline_exact_output_cpow_second_term_adverse_error_lt_five_percent_min_fee
+  have hcpow := baseline_exact_output_cpow_second_term_adverse_error_lt_precise_fee_share
     hratio0 hratioPositive hratioUpper hcomputedBase hbaseCeil
       hidealExponentLower hidealExponentUpper hcomputedExponent hexponentCeil
       ha0 ha1 hcomputedExponentSplit hfirstFloor hcontinued hwholeTrace
       hcomputedPower hcomposedCeil
-  exact swap_exact_amount_out_from_fixed_point_refinements
+  exact swap_exact_amount_out_from_fixed_point_refinements_fee_share
+    (feeShare := EXACT_OUTPUT_ADVERSE_FEE_SHARE)
     hinputBalance houtputBalance houtputAmount.le hnominal hratio1 hfeeUpper
       (lt_of_lt_of_le (by norm_num) hidealExponentLower).le hcomputedBase
       hbaseCeil hcomputedExponent hexponentCeil hcpow hscale hmulCeil
       hfeeCeil hdownscaleCeil
 
 /-- Complete integer-exponent exact-output comparison; upper-rounded `c_powi` is conservative. -/
-theorem baseline_swap_exact_amount_out_integer_adverse_error_lt_five_percent_min_fee
+theorem baseline_swap_exact_amount_out_integer_adverse_error_lt_precise_fee_share
     {integerPart : ℕ}
     {inputBalance outputBalance outputAmount nominalRatio feeRate computedBase
       idealExponent computedPower scale : ℝ}
@@ -1235,8 +1304,9 @@ theorem baseline_swap_exact_amount_out_integer_adverse_error_lt_five_percent_min
     (hdownscaleCeil : IsCeil output ((adjustedInput : ℝ) / scale)) :
     exactOutputIdealInput (inputBalance / scale) feeRate nominalRatio idealExponent -
         (output : ℝ) <
-      exactOutputAdjustedMinimumFeeInputValue
-        (inputBalance / scale) feeRate idealExponent nominalRatio / 20 := by
+      EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+        exactOutputAdjustedMinimumFeeInputValue
+          (inputBalance / scale) feeRate idealExponent nominalRatio := by
   have hratio0 : 0 ≤ nominalRatio := by rw [hnominal]; positivity
   have hratioPositive : 0 < nominalRatio := by rw [hnominal]; positivity
   have hratio1 : nominalRatio < 1 := by
@@ -1253,11 +1323,15 @@ theorem baseline_swap_exact_amount_out_integer_adverse_error_lt_five_percent_min
     hidealPositive hratioPositive
   have hcpow :
       (BONE : ℝ) * computedBase ^ (integerPart : ℝ) - computedPower <
-        exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20 := by
-    have hshare : 0 < exactOutputMinimumFeePowerValue idealExponent nominalRatio / 20 :=
-      div_pos hfeePositive (by norm_num)
+        EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+          exactOutputMinimumFeePowerValue idealExponent nominalRatio := by
+    have hshare :
+        0 < EXACT_OUTPUT_ADVERSE_FEE_SHARE *
+          exactOutputMinimumFeePowerValue idealExponent nominalRatio :=
+      mul_pos (by rw [exact_output_adverse_fee_share_value]; norm_num) hfeePositive
     linarith
-  exact swap_exact_amount_out_from_fixed_point_refinements
+  exact swap_exact_amount_out_from_fixed_point_refinements_fee_share
+    (feeShare := EXACT_OUTPUT_ADVERSE_FEE_SHARE)
     hinputBalance houtputBalance houtputAmount.le hnominal hratio1 hfeeUpper
       hidealPositive.le hcomputedBase hbaseCeil hcomputedExponent hexponentCeil
       hcpow hscale hmulCeil hfeeCeil hdownscaleCeil
