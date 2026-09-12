@@ -46,22 +46,23 @@ noncomputable def singleSidedTokenWithdrawalComputedMinimumFeePowerValue
 
 /-- A strict rational ceiling on exact-token-output withdrawal adverse error. -/
 noncomputable def SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE : ℝ :=
-  4751 / 100000
+  HALF_AUGMENTED_LATER_ADVERSE_FEE_SHARE
 
 /-- The precise later recurrence budget relative to the minimum fee rate. -/
 noncomputable def SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE : ℝ :=
-  MIN_FEE_RATE * (47501 / 1000000)
+  HALF_AUGMENTED_LATER_FEE_RATE
 
 theorem single_sided_token_withdrawal_adverse_fee_share_value :
     SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE =
       (4751 : ℝ) / 100000 := by
-  rfl
+  rw [SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE,
+    half_augmented_later_adverse_fee_share_value]
 
 theorem single_sided_token_withdrawal_later_fee_rate_value :
     SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE =
       (47501 : ℝ) / 1000000000000 := by
-  norm_num [SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE,
-    MIN_FEE_RATE, MIN_FEE, STROOP]
+  rw [SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE,
+    half_augmented_later_fee_rate_value]
 
 /--
 For a fractional exponent, reducing a base in `[0,1]` by `q - r` reduces its
@@ -575,23 +576,6 @@ theorem baseline_single_sided_token_withdrawal_cpow_second_term_adverse_error_lt
   rw [hfeeEq] at hfeeScale
   exact lt_trans hadverseSmall hfeeScale
 
-/-- The in-band augmented recurrence fits within `4.7501%` of minimum fee. -/
-theorem single_sided_token_withdrawal_augmented_error_lt_later_fee_rate
-    {n : ℕ} {weightedFirstTerm : ℝ}
-    (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
-    (hcontinue :
-      (CPOW_PRECISION : ℝ) <
-        weightedFirstTerm * ((1 : ℝ) / 2 / 2) *
-            ((1 : ℝ) / 2) ^ (n - 3) +
-          (3 * ((n - 1 : ℕ) : ℝ) - 2)) :
-    accumulatedError n + (3 * (n : ℝ) - 2) <
-      SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE * weightedFirstTerm := by
-  interval_cases n <;>
-    norm_num [accumulatedError,
-      SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE, MIN_FEE_RATE,
-      MIN_FEE, STROOP, CPOW_PRECISION] at hcontinue ⊢ <;>
-    linarith
-
 /-- Full later-term baseline `c_pow` bound for the direct-weight withdrawal. -/
 theorem baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_precise_fee_share
     (coefficientProduct multiplied computedTerm : ℕ → ℤ)
@@ -716,8 +700,9 @@ theorem baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_preci
     htermBounds (n - 1) (by omega) (by omega)
   have hcontinue := continued_loop_forces_weighted_first_term_scale
     T hweights.1.le hweights.2.le hx (by norm_num) hrec hn3 hprevious hpreviousError
-  have hbudget := single_sided_token_withdrawal_augmented_error_lt_later_fee_rate
-    hn3 hn46 (by simpa using hcontinue)
+  have hbudget := augmented_error_lt_half_later_fee_rate
+    hn3 hn46 (by simpa [SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE]
+      using hcontinue)
   let exactPartial : ℝ :=
     ∑ k ∈ Finset.range (n + 1), T k
   let computedPartial : ℝ :=
@@ -783,10 +768,9 @@ theorem baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_preci
   have hrate :
       SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE ≤
         SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE * MIN_FEE_RATE := by
-    rw [single_sided_token_withdrawal_later_fee_rate_value,
-      single_sided_token_withdrawal_adverse_fee_share_value,
-      minimum_fee_rate_value]
-    norm_num
+    simpa [SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE,
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE] using
+        half_augmented_later_fee_rate_le_selected_share
   have hscaledRate := mul_le_mul_of_nonneg_right hrate hscale0
   calc
     computedPower - (BONE : ℝ) * computedBase ^ weight <

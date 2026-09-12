@@ -11,9 +11,72 @@ continuous-approximation layer as `BaselineFeeBound.lean`.
 /-- One thirty-second of the configured minimum swap-fee rate. -/
 noncomputable def THIRTY_SECOND_MIN_FEE_RATE : ℝ := MIN_FEE_RATE / 32
 
+/-- A practical strict ceiling for ordinary three-fifths-band later error. -/
+noncomputable def THREE_FIFTHS_LATER_ADVERSE_FEE_SHARE : ℝ :=
+  3961 / 100000
+
+/-- The corresponding finite recurrence rate relative to the first term. -/
+noncomputable def THREE_FIFTHS_LATER_FEE_RATE : ℝ :=
+  MIN_FEE_RATE * (39601 / 1000000)
+
+/-- A practical strict ceiling for augmented half-band later error. -/
+noncomputable def HALF_AUGMENTED_LATER_ADVERSE_FEE_SHARE : ℝ :=
+  4751 / 100000
+
+/-- The augmented half-band finite recurrence rate. -/
+noncomputable def HALF_AUGMENTED_LATER_FEE_RATE : ℝ :=
+  MIN_FEE_RATE * (47501 / 1000000)
+
 theorem thirty_second_minimum_fee_rate_value :
     THIRTY_SECOND_MIN_FEE_RATE = (1 : ℝ) / 32000000 := by
   norm_num [THIRTY_SECOND_MIN_FEE_RATE, MIN_FEE_RATE, MIN_FEE, STROOP]
+
+theorem three_fifths_later_adverse_fee_share_value :
+    THREE_FIFTHS_LATER_ADVERSE_FEE_SHARE = (3961 : ℝ) / 100000 := by
+  rfl
+
+theorem three_fifths_later_fee_rate_value :
+    THREE_FIFTHS_LATER_FEE_RATE = (39601 : ℝ) / 1000000000000 := by
+  norm_num [THREE_FIFTHS_LATER_FEE_RATE, MIN_FEE_RATE, MIN_FEE, STROOP]
+
+theorem half_augmented_later_adverse_fee_share_value :
+    HALF_AUGMENTED_LATER_ADVERSE_FEE_SHARE = (4751 : ℝ) / 100000 := by
+  rfl
+
+theorem half_augmented_later_fee_rate_value :
+    HALF_AUGMENTED_LATER_FEE_RATE = (47501 : ℝ) / 1000000000000 := by
+  norm_num [HALF_AUGMENTED_LATER_FEE_RATE, MIN_FEE_RATE, MIN_FEE, STROOP]
+
+theorem three_fifths_later_fee_rate_le_selected_share :
+    THREE_FIFTHS_LATER_FEE_RATE ≤
+      THREE_FIFTHS_LATER_ADVERSE_FEE_SHARE * MIN_FEE_RATE := by
+  rw [three_fifths_later_fee_rate_value,
+    three_fifths_later_adverse_fee_share_value, minimum_fee_rate_value]
+  norm_num
+
+theorem half_augmented_later_fee_rate_le_selected_share :
+    HALF_AUGMENTED_LATER_FEE_RATE ≤
+      HALF_AUGMENTED_LATER_ADVERSE_FEE_SHARE * MIN_FEE_RATE := by
+  rw [half_augmented_later_fee_rate_value,
+    half_augmented_later_adverse_fee_share_value, minimum_fee_rate_value]
+  norm_num
+
+/-- A dominated first-term scale inherits the selected three-fifths fee share. -/
+theorem three_fifths_later_fee_rate_scale_le_selected_share
+    {firstTerm feeScale feeValue : ℝ}
+    (hfeeScale0 : 0 ≤ feeScale)
+    (hfirstScale : firstTerm ≤ feeScale)
+    (hfeeValue : feeValue = MIN_FEE_RATE * feeScale) :
+    THREE_FIFTHS_LATER_FEE_RATE * firstTerm ≤
+      THREE_FIFTHS_LATER_ADVERSE_FEE_SHARE * feeValue := by
+  have hrate0 : 0 ≤ THREE_FIFTHS_LATER_FEE_RATE := by
+    rw [three_fifths_later_fee_rate_value]
+    norm_num
+  have hscaled := mul_le_mul_of_nonneg_left hfirstScale hrate0
+  have hselected := mul_le_mul_of_nonneg_right
+    three_fifths_later_fee_rate_le_selected_share hfeeScale0
+  rw [hfeeValue]
+  exact le_trans hscaled (by simpa [mul_assoc] using hselected)
 
 /-
 The generic geometric estimate discards the division by two in the second
@@ -174,31 +237,31 @@ theorem sharp_continuation_forces_first_term_above_precision
     norm_num [CPOW_PRECISION] at hcontinue ⊢ <;>
     linarith
 
-/-- The same sharper estimate covers the complete `[0.5, 1.6]` operating band at 5%. -/
-theorem accumulated_error_lt_five_percent_min_fee_of_later_terms
+/-- The three-fifths-band recurrence budget is below `3.9601%` of minimum fee. -/
+theorem accumulated_error_lt_three_fifths_later_fee_rate
     {n : ℕ} {firstTerm : ℝ}
     (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
     (hcontinue :
       (CPOW_PRECISION : ℝ) <
         firstTerm * ((3 : ℝ) / 5 / 2) * ((3 : ℝ) / 5) ^ (n - 3) +
           (3 * ((n - 1 : ℕ) : ℝ) - 2)) :
-    accumulatedError n < FIVE_PERCENT_MIN_FEE_RATE * firstTerm := by
+    accumulatedError n < THREE_FIFTHS_LATER_FEE_RATE * firstTerm := by
   interval_cases n <;>
-    norm_num [accumulatedError, FIVE_PERCENT_MIN_FEE_RATE, MIN_FEE_RATE,
+    norm_num [accumulatedError, THREE_FIFTHS_LATER_FEE_RATE, MIN_FEE_RATE,
       MIN_FEE, STROOP, CPOW_PRECISION] at hcontinue ⊢ <;>
     linarith
 
-/-- The weighted first-term scale also covers the full operating band at 5%. -/
-theorem accumulated_error_lt_five_percent_min_fee_of_weighted_later_terms
+/-- The same `3.9601%` rate applies to a weighted first-term scale. -/
+theorem accumulated_error_lt_three_fifths_weighted_later_fee_rate
     {n : ℕ} {weightedFirstTerm : ℝ}
     (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
     (hcontinue :
       (CPOW_PRECISION : ℝ) <
         weightedFirstTerm * ((3 : ℝ) / 5 / 2) * ((3 : ℝ) / 5) ^ (n - 3) +
           (3 * ((n - 1 : ℕ) : ℝ) - 2)) :
-    accumulatedError n < FIVE_PERCENT_MIN_FEE_RATE * weightedFirstTerm := by
+    accumulatedError n < THREE_FIFTHS_LATER_FEE_RATE * weightedFirstTerm := by
   interval_cases n <;>
-    norm_num [accumulatedError, FIVE_PERCENT_MIN_FEE_RATE, MIN_FEE_RATE,
+    norm_num [accumulatedError, THREE_FIFTHS_LATER_FEE_RATE, MIN_FEE_RATE,
       MIN_FEE, STROOP, CPOW_PRECISION] at hcontinue ⊢ <;>
     linarith
 
@@ -207,7 +270,7 @@ At displacement at most one half, the weighted fee also covers the extra
 final-term recurrence budget introduced by the below-one round-down path,
 which adds its final negative term a second time.
 -/
-theorem augmented_error_lt_five_percent_min_fee_of_weighted_later_terms
+theorem augmented_error_lt_half_later_fee_rate
     {n : ℕ} {weightedFirstTerm : ℝ}
     (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
     (hcontinue :
@@ -215,9 +278,9 @@ theorem augmented_error_lt_five_percent_min_fee_of_weighted_later_terms
         weightedFirstTerm * ((1 : ℝ) / 2 / 2) * ((1 : ℝ) / 2) ^ (n - 3) +
           (3 * ((n - 1 : ℕ) : ℝ) - 2)) :
     accumulatedError n + (3 * (n : ℝ) - 2) <
-      FIVE_PERCENT_MIN_FEE_RATE * weightedFirstTerm := by
+      HALF_AUGMENTED_LATER_FEE_RATE * weightedFirstTerm := by
   interval_cases n <;>
-    norm_num [accumulatedError, FIVE_PERCENT_MIN_FEE_RATE, MIN_FEE_RATE,
+    norm_num [accumulatedError, HALF_AUGMENTED_LATER_FEE_RATE, MIN_FEE_RATE,
       MIN_FEE, STROOP, CPOW_PRECISION] at hcontinue ⊢ <;>
     linarith
 
@@ -446,7 +509,7 @@ theorem baseline_exact_output_first_iteration_has_no_adverse_error
 Generic later-iteration comparison for any operation in the full operating
 band whose fee scale directly dominates the first fractional term.
 -/
-theorem baseline_operating_band_later_adverse_error_lt_five_percent_min_fee
+theorem baseline_operating_band_later_adverse_error_lt_precise_fee_share
     (T : ℕ → ℝ)
     {n : ℕ} {a x previous firstTerm : ℝ}
     {exactPower exactUpper computedUpper feeValue : ℝ}
@@ -461,12 +524,14 @@ theorem baseline_operating_band_later_adverse_error_lt_five_percent_min_fee
     (hfirst : firstTerm = |T 1|)
     (hpower : exactPower ≤ exactUpper)
     (hsum : |exactUpper - computedUpper| < accumulatedError n)
-    (hfee : FIVE_PERCENT_MIN_FEE_RATE * firstTerm ≤ feeValue / 20) :
-    exactPower - computedUpper < feeValue / 20 := by
+    (hfee : THREE_FIFTHS_LATER_FEE_RATE * firstTerm ≤
+      THREE_FIFTHS_LATER_ADVERSE_FEE_SHARE * feeValue) :
+    exactPower - computedUpper <
+      THREE_FIFTHS_LATER_ADVERSE_FEE_SHARE * feeValue := by
   have hcontinue := continued_loop_forces_sharp_first_term_scale
     T ha0 ha1 hx (by norm_num) hrec hn3 hprevious htermError
   rw [← hfirst] at hcontinue
-  have hbudget := accumulated_error_lt_five_percent_min_fee_of_later_terms
+  have hbudget := accumulated_error_lt_three_fifths_later_fee_rate
     hn3 hn46 (by simpa using hcontinue)
   have hadverse : exactPower - computedUpper < accumulatedError n := by
     have hupper : exactUpper - computedUpper < accumulatedError n :=
@@ -505,7 +570,7 @@ theorem conservative_direction_has_no_adverse_error
   linarith
 
 /-- The single-sided weighted fee scale dominates the reciprocal exponent's fractional term. -/
-theorem single_sided_fee_value_dominates_reciprocal_fractional_term
+theorem single_sided_fee_value_dominates_reciprocal_fractional_term_precise
     {S fractional weight q nominalRatio firstTerm feeValue : ℝ}
     (hS0 : 0 ≤ S) (hfractional0 : 0 ≤ fractional)
     (hfractionalFee : fractional ≤ (1 - weight) / weight)
@@ -513,7 +578,8 @@ theorem single_sided_fee_value_dominates_reciprocal_fractional_term
     (hfirst : firstTerm = S * fractional * q)
     (hfee :
       feeValue = MIN_FEE_RATE * (S * ((1 - weight) / weight) * nominalRatio)) :
-    FIVE_PERCENT_MIN_FEE_RATE * firstTerm ≤ feeValue / 20 := by
+    THREE_FIFTHS_LATER_FEE_RATE * firstTerm ≤
+      THREE_FIFTHS_LATER_ADVERSE_FEE_SHARE * feeValue := by
   have hSf0 : 0 ≤ S * fractional := mul_nonneg hS0 hfractional0
   have hdisplacement : S * fractional * q ≤ S * fractional * nominalRatio :=
     mul_le_mul_of_nonneg_left hqNominal hSf0
@@ -523,28 +589,27 @@ theorem single_sided_fee_value_dominates_reciprocal_fractional_term
         S * ((1 - weight) / weight) * nominalRatio := by
     simpa [mul_assoc, mul_left_comm, mul_comm] using
       mul_le_mul_of_nonneg_left hfractionalFee hscale0
-  calc
-    FIVE_PERCENT_MIN_FEE_RATE * firstTerm =
-        (1 / 20000000 : ℝ) * (S * fractional * q) := by
-      rw [hfirst, five_percent_minimum_fee_rate_value]
-    _ ≤ (1 / 20000000 : ℝ) * (S * fractional * nominalRatio) :=
-      mul_le_mul_of_nonneg_left hdisplacement (by norm_num)
-    _ ≤ (1 / 20000000 : ℝ) *
-        (S * ((1 - weight) / weight) * nominalRatio) :=
-      mul_le_mul_of_nonneg_left hexponent (by norm_num)
-    _ = feeValue / 20 := by
-      rw [hfee, minimum_fee_rate_value]
-      ring
+  have hfirstScale :
+      firstTerm ≤ S * ((1 - weight) / weight) * nominalRatio := by
+    rw [hfirst]
+    exact le_trans hdisplacement hexponent
+  have hfeeScale0 :
+      0 ≤ S * ((1 - weight) / weight) * nominalRatio :=
+    mul_nonneg (mul_nonneg hS0 (le_trans hfractional0 hfractionalFee))
+      hnominal0
+  exact three_fifths_later_fee_rate_scale_le_selected_share
+    hfeeScale0 hfirstScale hfee
 
 /-- A direct single-sided fee dominates the `(1 - weight)`-weighted first term. -/
-theorem single_sided_fee_value_dominates_weighted_first_term
+theorem single_sided_fee_value_dominates_weighted_first_term_precise
     {S weight q nominalRatio firstTerm feeValue : ℝ}
     (hS0 : 0 ≤ S) (hweight0 : 0 ≤ weight) (hweight1 : weight ≤ 1)
-    (hqNominal : q ≤ nominalRatio)
+    (hnominal0 : 0 ≤ nominalRatio) (hqNominal : q ≤ nominalRatio)
     (hfirst : firstTerm = S * weight * q)
     (hfee :
       feeValue = MIN_FEE_RATE * (S * weight * (1 - weight) * nominalRatio)) :
-    FIVE_PERCENT_MIN_FEE_RATE * ((1 - weight) * firstTerm) ≤ feeValue / 20 := by
+    THREE_FIFTHS_LATER_FEE_RATE * ((1 - weight) * firstTerm) ≤
+      THREE_FIFTHS_LATER_ADVERSE_FEE_SHARE * feeValue := by
   have hSw0 : 0 ≤ S * weight := mul_nonneg hS0 hweight0
   have hfactor0 : 0 ≤ S * weight * (1 - weight) :=
     mul_nonneg hSw0 (sub_nonneg.mpr hweight1)
@@ -552,24 +617,23 @@ theorem single_sided_fee_value_dominates_weighted_first_term
       S * weight * (1 - weight) * q ≤
         S * weight * (1 - weight) * nominalRatio :=
     mul_le_mul_of_nonneg_left hqNominal hfactor0
-  calc
-    FIVE_PERCENT_MIN_FEE_RATE * ((1 - weight) * firstTerm) =
-        (1 / 20000000 : ℝ) * (S * weight * (1 - weight) * q) := by
-      rw [hfirst, five_percent_minimum_fee_rate_value]
-      ring
-    _ ≤ (1 / 20000000 : ℝ) *
-        (S * weight * (1 - weight) * nominalRatio) :=
-      mul_le_mul_of_nonneg_left hratio (by norm_num)
-    _ = feeValue / 20 := by
-      rw [hfee, minimum_fee_rate_value]
-      ring
+  have hfirstScale :
+      (1 - weight) * firstTerm ≤
+        S * weight * (1 - weight) * nominalRatio := by
+    rw [hfirst]
+    simpa [mul_assoc, mul_left_comm, mul_comm] using hratio
+  have hfeeScale0 :
+      0 ≤ S * weight * (1 - weight) * nominalRatio :=
+    mul_nonneg hfactor0 hnominal0
+  exact three_fifths_later_fee_rate_scale_le_selected_share
+    hfeeScale0 hfirstScale hfee
 
 /--
-Later direct single-sided paths have less than 5% adverse continuous
+Later direct single-sided paths have less than 3.961% adverse continuous
 approximation error, even without assuming that the selected directional
 result stayed on the conservative side.
 -/
-theorem baseline_direct_single_sided_later_adverse_error_lt_five_percent_min_fee
+theorem baseline_direct_single_sided_later_adverse_error_lt_precise_fee_share
     (T : ℕ → ℝ)
     {n : ℕ} {weight x previous q nominalRatio : ℝ}
     {exactPower exactDirectional computedDirectional feeValue : ℝ}
@@ -582,26 +646,27 @@ theorem baseline_direct_single_sided_later_adverse_error_lt_five_percent_min_fee
     (htermError :
       |T (n - 1) - previous| < 3 * ((n - 1 : ℕ) : ℝ) - 2)
     (hfirst : |T 1| = (BONE : ℝ) * weight * q)
-    (hqNominal : q ≤ nominalRatio)
+    (hnominal0 : 0 ≤ nominalRatio) (hqNominal : q ≤ nominalRatio)
     (hfeeValue :
       feeValue =
         MIN_FEE_RATE * ((BONE : ℝ) * weight * (1 - weight) * nominalRatio))
     (hdirectional : exactDirectional ≤ exactPower)
     (hsum : |computedDirectional - exactDirectional| < accumulatedError n) :
-    computedDirectional - exactPower < feeValue / 20 := by
+    computedDirectional - exactPower <
+      THREE_FIFTHS_LATER_ADVERSE_FEE_SHARE * feeValue := by
   have hcontinue := continued_loop_forces_weighted_first_term_scale
     T hweight0 hweight1 hx (by norm_num) hrec hn3 hprevious htermError
   have hbudget :=
-    accumulated_error_lt_five_percent_min_fee_of_weighted_later_terms
+    accumulated_error_lt_three_fifths_weighted_later_fee_rate
       hn3 hn46 (by simpa using hcontinue)
   have hadverse : computedDirectional - exactPower < accumulatedError n := by
     have hrounded : computedDirectional - exactDirectional < accumulatedError n :=
       lt_of_le_of_lt (le_abs_self (computedDirectional - exactDirectional)) hsum
     linarith
-  have hfee := single_sided_fee_value_dominates_weighted_first_term
+  have hfee := single_sided_fee_value_dominates_weighted_first_term_precise
     (S := (BONE : ℝ)) (weight := weight) (q := q)
     (nominalRatio := nominalRatio) (firstTerm := |T 1|) (feeValue := feeValue)
-    (by norm_num [BONE]) hweight0 hweight1 hqNominal hfirst hfeeValue
+    (by norm_num [BONE]) hweight0 hweight1 hnominal0 hqNominal hfirst hfeeValue
   linarith
 
 /-- The reciprocal exponent's fractional part is paid for by the single-sided fee factor. -/
@@ -621,7 +686,7 @@ theorem reciprocal_fractional_part_le_fee_exponent
 Composition of the reciprocal-exponent identity, weighted fee scale, sharp
 operating-band estimate, and later-iteration adverse-error bound.
 -/
-theorem baseline_reciprocal_single_sided_later_adverse_error_lt_five_percent_min_fee
+theorem baseline_reciprocal_single_sided_later_adverse_error_lt_precise_fee_share
     (T : ℕ → ℝ)
     {n : ℕ} {weight fractional integerPart x previous q nominalRatio : ℝ}
     {exactPower exactUpper computedUpper feeValue : ℝ}
@@ -643,15 +708,16 @@ theorem baseline_reciprocal_single_sided_later_adverse_error_lt_five_percent_min
         ((BONE : ℝ) * ((1 - weight) / weight) * nominalRatio))
     (hpower : exactPower ≤ exactUpper)
     (hsum : |exactUpper - computedUpper| < accumulatedError n) :
-    exactPower - computedUpper < feeValue / 20 := by
+    exactPower - computedUpper <
+      THREE_FIFTHS_LATER_ADVERSE_FEE_SHARE * feeValue := by
   have hfractionalFee := reciprocal_fractional_part_le_fee_exponent
     hweight0 hinteger hsplit
-  have hfee := single_sided_fee_value_dominates_reciprocal_fractional_term
+  have hfee := single_sided_fee_value_dominates_reciprocal_fractional_term_precise
     (S := (BONE : ℝ)) (fractional := fractional) (weight := weight)
     (q := q) (nominalRatio := nominalRatio) (firstTerm := |T 1|)
     (feeValue := feeValue) (by norm_num [BONE]) hfractional0
     hfractionalFee hnominal0 hqNominal hfirst hfeeValue
-  exact baseline_operating_band_later_adverse_error_lt_five_percent_min_fee
+  exact baseline_operating_band_later_adverse_error_lt_precise_fee_share
     T hfractional0 hfractional1 hx hrec hn3 hn46 hprevious htermError
       rfl hpower hsum hfee
 
