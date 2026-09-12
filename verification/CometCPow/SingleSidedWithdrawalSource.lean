@@ -582,9 +582,10 @@ theorem calcTokenWithdrawalAmountGivenLpTokenAmountExecution_refines
 
 /-
 Every successful source-shaped exact-LP-input withdrawal has pool-adverse
-error strictly below five percent of the weighted minimum-fee value.
+error strictly below `3001 / 100000 = 3.001%` of the weighted minimum-fee
+value.
 -/
-theorem calc_token_withdrawal_amount_given_lp_token_amount_execution_adverse_error_lt_five_percent_min_fee
+theorem calc_token_withdrawal_amount_given_lp_token_amount_execution_adverse_error_lt_precise_fee_share
     {outputBalance outputScalar poolSupply poolAmountIn outputWeight fee : ℕ}
     {result : SingleSidedWithdrawalExecutionResult}
     (houtputBalance : 0 < outputBalance) (houtputScalar : 0 < outputScalar)
@@ -598,9 +599,10 @@ theorem calc_token_withdrawal_amount_given_lp_token_amount_execution_adverse_err
         singleSidedWithdrawalIdealOutput outputBalance
           ((outputWeight : ℝ) / STROOP) ((fee : ℝ) / STROOP)
           ((poolAmountIn : ℝ) / poolSupply) <
-      singleSidedWithdrawalMinimumFeeOutputValue outputBalance
+      SINGLE_SIDED_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        singleSidedWithdrawalMinimumFeeOutputValue outputBalance
           ((outputWeight : ℝ) / STROOP)
-          ((poolAmountIn : ℝ) / poolSupply) / 20 := by
+          ((poolAmountIn : ℝ) / poolSupply) := by
   have href := calcTokenWithdrawalAmountGivenLpTokenAmountExecution_refines
     houtputBalance houtputScalar hpoolSupply hpoolAmountIn hweightLower
       hweightUpper hfeeUpper hexec
@@ -737,8 +739,9 @@ theorem calc_token_withdrawal_amount_given_lp_token_amount_execution_adverse_err
       (result.output : ℝ) -
           singleSidedWithdrawalIdealOutput
             (outputBalanceRaw / scale) weight feeRate nominalRatio <
-        singleSidedWithdrawalMinimumFeeOutputValue
-            (outputBalanceRaw / scale) weight nominalRatio / 20 := by
+        SINGLE_SIDED_WITHDRAWAL_ADVERSE_FEE_SHARE *
+          singleSidedWithdrawalMinimumFeeOutputValue
+            (outputBalanceRaw / scale) weight nominalRatio := by
     cases hcpowCase : result.cpow with
     | integer integerPart wholeRaw =>
         have hcpowExec :
@@ -756,7 +759,7 @@ theorem calc_token_withdrawal_amount_given_lp_token_amount_execution_adverse_err
           have hsplit := hexponentSplit.2.2.2
           rw [hcomponents.2.1] at hsplit
           simpa using hsplit.symm
-        exact baseline_single_sided_withdrawal_integer_adverse_error_lt_five_percent_min_fee
+        exact baseline_single_sided_withdrawal_integer_adverse_error_lt_precise_fee_share
           (integerPart := integerPart) (poolSupply := poolSupplyRaw)
           (poolAmountIn := poolAmountRaw) (nominalRatio := nominalRatio)
           (outputBalance := outputBalanceRaw) (weight := weight)
@@ -886,7 +889,7 @@ theorem calc_token_withdrawal_amount_given_lp_token_amount_execution_adverse_err
               _ ≤ wholeComputed * BONE :=
                 mul_le_mul_of_nonneg_right hwholeUpper (by norm_num [BONE])
               _ ≤ computedPower := hcomposedUpper
-          exact baseline_single_sided_withdrawal_unit_base_adverse_error_lt_five_percent_min_fee
+          exact baseline_single_sided_withdrawal_unit_base_adverse_error_lt_precise_fee_share
             (poolSupply := poolSupplyRaw) (poolAmountIn := poolAmountRaw)
             (nominalRatio := nominalRatio) (outputBalance := outputBalanceRaw)
             (weight := weight) (feeRate := feeRate) (computedBase := computedBase)
@@ -934,7 +937,7 @@ theorem calc_token_withdrawal_amount_given_lp_token_amount_execution_adverse_err
               convert hcomposedCeilRaw using 1
               all_goals push_cast
               all_goals ring
-            exact baseline_single_sided_withdrawal_first_term_adverse_error_lt_five_percent_min_fee
+            exact baseline_single_sided_withdrawal_first_term_adverse_error_lt_precise_fee_share
               (integerPart := integerPart) (poolSupply := poolSupplyRaw)
               (poolAmountIn := poolAmountRaw) (nominalRatio := nominalRatio)
               (outputBalance := outputBalanceRaw) (weight := weight)
@@ -1040,7 +1043,7 @@ theorem calc_token_withdrawal_amount_given_lp_token_amount_execution_adverse_err
               convert hcomposedCeilRaw using 1
               all_goals push_cast
               all_goals ring
-            exact baseline_single_sided_withdrawal_multiterm_adverse_error_lt_five_percent_min_fee
+            exact baseline_single_sided_withdrawal_multiterm_adverse_error_lt_precise_fee_share
               coefficientProduct multiplied computedTerm
               (n := approx.iterations) (integerPart := integerPart)
               (poolSupply := poolSupplyRaw) (poolAmountIn := poolAmountRaw)
