@@ -18,6 +18,8 @@ fn render() -> String {
          namespace CometCPow\n\n\
          def BONE : ℕ := {}\n\
          def STROOP : ℕ := {}\n\
+         def INIT_POOL_SUPPLY : ℕ := {}\n\
+         def MIN_BALANCE : ℕ := {}\n\
          def MIN_WEIGHT : ℕ := {}\n\
          def MAX_WEIGHT : ℕ := {}\n\
          def MAX_IN_RATIO : ℕ := {}\n\
@@ -30,6 +32,8 @@ fn render() -> String {
          end CometCPow\n",
         as_nat("BONE", c_consts::BONE),
         as_nat("STROOP", c_consts::STROOP),
+        as_nat("INIT_POOL_SUPPLY", c_consts::INIT_POOL_SUPPLY),
+        as_nat("MIN_BALANCE", c_consts::MIN_BALANCE),
         as_nat("MIN_WEIGHT", c_consts::MIN_WEIGHT),
         as_nat("MAX_WEIGHT", c_consts::MAX_WEIGHT),
         as_nat("MAX_IN_RATIO", c_consts::MAX_IN_RATIO),

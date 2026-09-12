@@ -7,6 +7,8 @@ namespace CometCPow
 
 def BONE : ℕ := 1000000000000000000
 def STROOP : ℕ := 10000000
+def INIT_POOL_SUPPLY : ℕ := 1000000000
+def MIN_BALANCE : ℕ := 100
 def MIN_WEIGHT : ℕ := 1000000
 def MAX_WEIGHT : ℕ := 9000000
 def MAX_IN_RATIO : ℕ := 3333334
