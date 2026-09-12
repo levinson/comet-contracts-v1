@@ -403,20 +403,22 @@ theorem successful_get_spot_price_not_below_sans_fee
     sansFeeRun.priceRaw ≤ feeRun.priceRaw := by
   have hfeeRefinements := feeRun.refinements hinBalance houtBalance
     hinWeight0 houtWeight0 hinWeightUpper houtWeightUpper hfeeUpper
-  have hratio0 := feeRun.ratio_nonnegative hinBalance houtBalance
-    hinWeight0 houtWeight0 hinWeightUpper houtWeightUpper hfeeUpper
-  have hfeePrice := fee_adjusted_spot_price_not_below_ratio
-    hratio0 (by positivity : (0 : ℝ) ≤ (fee : ℝ))
-      (by exact_mod_cast hfeeUpper : (fee : ℝ) < (STROOP : ℝ))
-      hfeeRefinements.2.2.2
-  have hsansFee := sansFeeRun.sans_fee_returns_ratio
-    hinBalance houtBalance hinWeight0 houtWeight0
-      hinWeightUpper houtWeightUpper
+  have hzeroFeeUpper : 0 < STROOP := by norm_num [STROOP]
+  have hsansFeeRefinements := sansFeeRun.refinements hinBalance houtBalance
+    hinWeight0 houtWeight0 hinWeightUpper houtWeightUpper hzeroFeeUpper
   have hprefix := feeRun.prefix_eq sansFeeRun
-  calc
-    sansFeeRun.priceRaw = sansFeeRun.ratioRaw := hsansFee
-    _ = feeRun.ratioRaw := hprefix.2.2.symm
-    _ ≤ feeRun.priceRaw := hfeePrice
+  have hsansFeePriceFloor :
+      IsFloor sansFeeRun.priceRaw
+        (((feeRun.ratioRaw : ℝ) * (STROOP : ℝ)) / (STROOP : ℝ)) := by
+    rw [hprefix.2.2]
+    simpa using hsansFeeRefinements.2.2.2
+  exact get_spot_price_not_below_sans_fee
+    (by exact_mod_cast hinBalance) (by exact_mod_cast houtBalance)
+    (by exact_mod_cast hinWeight0) (by exact_mod_cast houtWeight0)
+    (by exact_mod_cast hinWeightUpper) (by exact_mod_cast houtWeightUpper)
+    (by positivity) (by exact_mod_cast hfeeUpper)
+    hfeeRefinements.1 hfeeRefinements.2.1 hfeeRefinements.2.2.1
+      hfeeRefinements.2.2.2 hsansFeePriceFloor
 
 /-- Successful spot-price executions are monotone in their configured fee. -/
 theorem successful_spot_price_is_monotone_in_fee

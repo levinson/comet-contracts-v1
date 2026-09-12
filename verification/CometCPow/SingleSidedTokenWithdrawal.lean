@@ -404,13 +404,6 @@ theorem baseline_single_sided_token_withdrawal_cpow_first_term_has_no_adverse_er
   rw [hpartial] at htail
   linarith
 
-/-- A unit base is exact on the direct-weight path. -/
-theorem baseline_single_sided_token_withdrawal_cpow_unit_base_has_no_adverse_error
-    {weight computedBase computedPower : ℝ}
-    (hbase : computedBase = 1) (hpower : computedPower ≤ BONE) :
-    computedPower ≤ (BONE : ℝ) * computedBase ^ weight := by
-  simpa [hbase] using hpower
-
 /--
 At the second stop, the doubled negative term leaves only a sub-`1/BONE`
 coefficient-floor effect, far below the selected weighted minimum-fee share.

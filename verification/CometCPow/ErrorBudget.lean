@@ -22,30 +22,6 @@ theorem recurrence_increment_lt_three {S D k : ℝ}
     _ < D + 1 + 1 + 1 := by linarith
     _ = D + 3 := by ring
 
-/-- Induction principle used by the implementation's `3k - 2` term-error budget. -/
-theorem linear_error_budget (D : ℕ → ℝ)
-    (hbase : D 1 < 1)
-    (hstep : ∀ n, 1 ≤ n → n < 50 → D (n + 1) < D n + 3) :
-    ∀ n, 1 ≤ n → n ≤ 50 → D n < 3 * (n : ℝ) - 2 := by
-  intro n
-  induction n using Nat.strong_induction_on with
-  | h n ih =>
-      intro hn h50
-      cases n with
-      | zero => omega
-      | succ m =>
-          by_cases hm : m = 0
-          · subst m
-            norm_num
-            exact hbase
-          · have hm1 : 1 ≤ m := Nat.one_le_iff_ne_zero.mpr hm
-            have hm50 : m ≤ 50 := le_trans (Nat.le_succ m) h50
-            have hmlt : m < 50 := Nat.lt_of_succ_le h50
-            have hi := ih m (Nat.lt_succ_self m) hm1 hm50
-            have hs := hstep m hm1 hmlt
-            push_cast at hi hs ⊢
-            nlinarith
-
 /--
 The raw recurrence inequality implies the implementation's `3k - 2` budget
 through any stopping index no larger than the production cap.
@@ -85,17 +61,6 @@ theorem recurrence_error_budget_until (S : ℝ) (D : ℕ → ℝ) {N : ℕ}
             have hstep : D (m + 1) < D m + 3 := lt_trans hraw hincrement
             push_cast at hi hstep ⊢
             nlinarith
-
-/-- The cap-specialized form retained for callers that construct all 50 steps. -/
-theorem recurrence_error_budget (S : ℝ) (D : ℕ → ℝ)
-    (hS : 148 < S)
-    (hbase : D 1 < 1)
-    (hrec : ∀ n, 1 ≤ n → n < 50 →
-      D (n + 1) <
-        (1 + 1 / (((n + 1 : ℕ) : ℝ) * S)) * D n +
-          1 / ((n + 1 : ℕ) : ℝ) + 1 / ((n + 1 : ℕ) : ℝ) + 1) :
-    ∀ n, 1 ≤ n → n ≤ 50 → D n < 3 * (n : ℝ) - 2 :=
-  recurrence_error_budget_until S D (N := 50) (by rfl) hS hbase hrec
 
 /-- Closed form for the sum of the per-term budgets `3k - 2`, for `k = 1..N`. -/
 theorem sum_error_budget (N : ℕ) :
@@ -145,28 +110,6 @@ theorem partial_sum_error_lt_sum_error_budget
           (3 * (((k + 1 : ℕ) : ℝ)) - 2) :=
       Finset.sum_lt_sum_of_nonempty hrange hpointwise
     _ = (3 * (N : ℝ) ^ 2 - N) / 2 := sum_error_budget N
-
-/--
-The raw recurrence inequality discharges both the pointwise term budget and
-the accumulated finite-sum budget used by the baseline `c_pow` proof.
--/
-theorem recurrence_implies_partial_sum_error_budget
-    (S : ℝ) (exactTerm computedTerm : ℕ → ℝ) {N : ℕ}
-    (hS : 148 < S)
-    (hbase : |exactTerm 1 - computedTerm 1| < 1)
-    (hrec : ∀ n, 1 ≤ n → n < 50 →
-      |exactTerm (n + 1) - computedTerm (n + 1)| <
-        (1 + 1 / (((n + 1 : ℕ) : ℝ) * S)) *
-            |exactTerm n - computedTerm n| +
-          1 / ((n + 1 : ℕ) : ℝ) + 1 / ((n + 1 : ℕ) : ℝ) + 1)
-    (hN1 : 1 ≤ N) (hN50 : N ≤ 50) :
-    |(∑ k ∈ Finset.range N, exactTerm (k + 1)) -
-        (∑ k ∈ Finset.range N, computedTerm (k + 1))| <
-      (3 * (N : ℝ) ^ 2 - N) / 2 := by
-  have hterm := recurrence_error_budget S
-    (fun k ↦ |exactTerm k - computedTerm k|) hS hbase hrec
-  exact partial_sum_error_lt_sum_error_budget exactTerm computedTerm hN1
-    (fun k hk1 hkN ↦ hterm k hk1 (le_trans hkN hN50))
 
 /--
 The partial-sum budget using only recurrence steps that production executed

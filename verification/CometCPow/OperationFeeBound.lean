@@ -605,24 +605,4 @@ theorem proportional_exit_rounding_is_pool_favoring
     roundedWithdrawal ≤ balance * roundedRatio := hwithdrawalLower
     _ ≤ balance * exactRatio := mul_le_mul_of_nonneg_left hratioLower hbalance0
 
-/-- Exact ceiling refinements compose into the pool-favoring proportional-join bound. -/
-theorem proportional_join_ceil_chain_is_pool_favoring
-    {balance exactRatio : ℝ} {roundedRatio roundedDeposit : ℤ}
-    (hbalance0 : 0 ≤ balance)
-    (hratioCeil : IsCeil roundedRatio exactRatio)
-    (hdepositCeil : IsCeil roundedDeposit (balance * roundedRatio)) :
-    balance * exactRatio ≤ (roundedDeposit : ℝ) :=
-  proportional_join_rounding_is_pool_favoring
-    hbalance0 hratioCeil.le hdepositCeil.le
-
-/-- Exact floor refinements compose into the pool-favoring proportional-exit bound. -/
-theorem proportional_exit_floor_chain_is_pool_favoring
-    {balance exactRatio : ℝ} {roundedRatio roundedWithdrawal : ℤ}
-    (hbalance0 : 0 ≤ balance)
-    (hratioFloor : IsFloor roundedRatio exactRatio)
-    (hwithdrawalFloor : IsFloor roundedWithdrawal (balance * roundedRatio)) :
-    (roundedWithdrawal : ℝ) ≤ balance * exactRatio :=
-  proportional_exit_rounding_is_pool_favoring
-    hbalance0 hratioFloor.le hwithdrawalFloor.le
-
 end CometCPow

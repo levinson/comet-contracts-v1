@@ -6,7 +6,7 @@ namespace CometCPow
 Refinement of one baseline `c_pow_approx` term update. The Rust update uses
 three mathematical floors: coefficient times base displacement, multiplication
 by the preceding term, and division by the term index. This theorem derives
-the raw recurrence-error inequality consumed by `recurrence_error_budget`.
+the raw recurrence-error inequality consumed by `recurrence_error_budget_until`.
 -/
 
 /-- Three exact floors imply the implementation's one-step error inequality. -/

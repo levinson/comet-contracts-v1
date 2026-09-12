@@ -176,13 +176,4 @@ theorem below_one_upper_composition_preserves_adverse_bound
       mul_nonpos_of_nonneg_of_nonpos hwhole0 (le_of_not_ge hdelta)
     linarith
 
-/-- A positive output-balance scale preserves the fee comparison. -/
-theorem positive_output_scale_preserves_fee_comparison
-    {adverse feeValue outputScale : ℝ}
-    (hscale : 0 < outputScale)
-    (herror : adverse < feeValue / 10) :
-    outputScale * adverse < outputScale * feeValue / 10 := by
-  have := mul_lt_mul_of_pos_left herror hscale
-  linarith
-
 end CometCPow

@@ -525,10 +525,6 @@ def lowerPowiExecution (baseRaw : ℤ) (exponent : ℕ) : Option ℤ :=
   let zRaw := if exponent % 2 ≠ 0 then baseRaw else (BONE : ℤ)
   lowerPowiLoopExecution (exponent + 1) zRaw baseRaw (exponent / 2)
 
-theorem lowerPowiExecution_zero (baseRaw : ℤ) :
-    lowerPowiExecution baseRaw 0 = some BONE := by
-  simp [lowerPowiExecution, lowerPowiLoopExecution]
-
 /-- Source control-flow result of lower-directed `c_pow`. -/
 inductive LowerCPowExecutionResult where
   | integer (integerPart : ℕ) (wholeRaw : ℤ)
@@ -1173,22 +1169,33 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
     lt_of_lt_of_le (by norm_num [MIN_WEIGHT]) hweightLower
   have hweightNatUpper : inputWeight < STROOP :=
     lt_of_le_of_lt hweightUpper (by norm_num [MAX_WEIGHT, STROOP])
-  have hminimumFeePositive :
-      0 < singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio := by
-    apply single_sided_token_deposit_minimum_fee_power_value_positive
-      hweightBounds.1 hweightBounds.2
-    rw [hnominal]
-    positivity
-  have hpreciseFeePositive :
-      0 < SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
-        singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio := by
-    exact mul_pos (by
-      rw [single_sided_token_deposit_adverse_fee_share_value]
-      norm_num) hminimumFeePositive
-  have hcpowBound :
-      computedPower - (BONE : ℝ) * computedBase ^ weight <
+  have hnewSupplyFloor :
+      IsFloor result.newPoolSupplyRaw
+        (poolSupplyRaw * (computedPower / (BONE : ℝ))) := by
+    convert href.newPoolSupplyFloor using 1
+    dsimp [poolSupplyRaw, computedPower]
+    ring
+  have hpoolAmount :
+      (result.poolAmountRaw : ℝ) =
+        (result.newPoolSupplyRaw : ℝ) - poolSupplyRaw := by
+    rw [href.poolAmountEq]
+    simp [poolSupplyRaw]
+  have houtputFloor :
+      IsFloor result.output ((result.poolAmountRaw : ℝ) / scale) := by
+    convert href.outputFloor using 1
+    norm_num [scale, BONE, STROOP]
+  have hpoolSupplyOriginal : poolSupplyRaw / scale = (poolSupply : ℝ) := by
+    dsimp [poolSupplyRaw, scale]
+    rw [href.poolSupplyEq]
+    push_cast
+    norm_num [BONE, STROOP]
+  have hresult :
+      (result.output : ℝ) -
+        singleSidedTokenDepositIdealOutput
+          (poolSupplyRaw / scale) weight feeRate nominalRatio <
         SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE *
-          singleSidedTokenDepositMinimumFeePowerValue weight nominalRatio := by
+          singleSidedTokenDepositMinimumFeeOutputValue
+            (poolSupplyRaw / scale) weight nominalRatio := by
     cases hcpowCase : result.cpow with
     | integer integerPart wholeRaw =>
         have hcpowExec :
@@ -1234,13 +1241,13 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
           have hpowerUnit : powerRaw = BONE := by
             apply deposit_isFloor_integer_eq
             simpa [hpartialUnit] using hcomposedFloor
-          have hconservative :=
-            baseline_single_sided_token_deposit_cpow_unit_base_has_no_adverse_error
-              (weight := weight) (computedBase := computedBase)
-              (computedPower := computedPower)
-              (by simp [computedBase, hunit, BONE])
-              (by simp [hcomputedPower, hpowerUnit])
-          linarith
+          exact baseline_single_sided_token_deposit_unit_base_adverse_error_lt_precise_fee_share
+            hinputBalanceRaw hinputAmountRaw hnominal hnominalUpper
+            hweightLowerReal hweightUpperReal hfee0 hfee1 hfeeMultiplier
+            href.adjustedInputNonnegative hadjustedRatio hadjustedFloor
+            hcomputedBase hbaseFloor (by simp [computedBase, hunit, BONE])
+            (by simp [hcomputedPower, hpowerUnit]) hpoolSupplyRaw hscale
+            hnewSupplyFloor hpoolAmount houtputFloor
         · have hbaseRawStrict : BONE < result.pre.baseRaw := by omega
           have hbaseStrict : 1 < computedBase := by
             dsimp [computedBase]
@@ -1275,14 +1282,14 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
           by_cases hnOne : approx.iterations = 1
           · rcases lowerAboveApproxExecution_first_sum hbaseRawStrict hremain0
               happExec hnOne with hzero | hpositive
-            · have hconservative :=
-                baseline_single_sided_token_deposit_cpow_no_correction_has_no_adverse_error
-                  hweightBounds.1.le hcaller.2.2.2.1 (by
-                    calc
-                      computedPower = (powerRaw : ℝ) := hcomputedPower
-                      _ ≤ (approx.partialRaw : ℝ) := hcomposedFloor.le
-                      _ = BONE := by rw [hzero.2]; norm_num [BONE])
-              linarith
+            · exact baseline_single_sided_token_deposit_zero_first_term_adverse_error_lt_precise_fee_share
+                hinputBalanceRaw hinputAmountRaw hnominal hnominalUpper
+                hweightLowerReal hweightUpperReal hfee0 hfee1 hfeeMultiplier
+                href.adjustedInputNonnegative hadjustedRatio hadjustedFloor
+                hcomputedBase hbaseFloor hzero.1
+                (by rw [hzero.2, hzero.1]; norm_num [BONE])
+                hcomputedPower hcomposedFloor hpoolSupplyRaw hscale
+                hnewSupplyFloor hpoolAmount houtputFloor
             · have hstopRaw := lowerAboveApproxExecution_final_le_of_lt_fifty
                 happExec (by omega)
               have hstop :
@@ -1290,13 +1297,16 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
                     CPOW_PRECISION := by
                 rw [← hnOne]
                 exact_mod_cast hstopRaw
-              exact baseline_single_sided_token_deposit_cpow_first_term_adverse_error_lt_precise_fee_share
+              exact baseline_single_sided_token_deposit_first_term_adverse_error_lt_precise_fee_share
                 (firstRounded :=
                   (exactInputApproxStateAt approx.xRaw remainRaw 1).term)
-                (computedPowerRaw := powerRaw) hweightLowerReal
-                hweightUpperReal hbaseStrict
-                hcaller.2.2.2.2.2.1 hfirstFloor hstop
-                (by exact_mod_cast hpositive.2) hcomputedPower hcomposedFloor
+                (computedPowerRaw := powerRaw) hinputBalanceRaw hinputAmountRaw
+                hnominal hnominalUpper hweightLowerReal hweightUpperReal hfee0
+                hfee1 hfeeMultiplier href.adjustedInputNonnegative
+                hadjustedRatio hadjustedFloor hcomputedBase hbaseFloor
+                hpositive.1 hfirstFloor hstop (by exact_mod_cast hpositive.2)
+                hcomputedPower hcomposedFloor hpoolSupplyRaw hscale
+                hnewSupplyFloor hpoolAmount houtputFloor
           · have hnTwo : 2 ≤ approx.iterations := by omega
             by_cases hsecond : approx.iterations = 2
             · have hpartial := lowerAboveApproxExecution_second_sum
@@ -1328,16 +1338,21 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
               have hdivideFloor :
                   IsFloor stepState.term ((stepState.multiplied : ℝ) / 2) := by
                 simpa using hstepFacts.2.2.1
-              have hconservative :=
-                baseline_single_sided_token_deposit_cpow_second_term_has_no_adverse_error
-                  hweightBounds.1.le hweightBounds.2.le hbaseStrict
-                  (le_trans (le_abs_self _) hcaller.2.2.2.2.2.2)
-                  hfirstNonnegative hfirstFloor hcoefficientFloor hmultiplyFloor
-                  hdivideFloor (by
-                    rw [hstepAt] at hpartial
-                    exact_mod_cast hpartial)
-                  hcomputedPower hcomposedFloor
-              linarith
+              exact baseline_single_sided_token_deposit_second_term_adverse_error_lt_precise_fee_share
+                (firstRounded :=
+                  (exactInputApproxStateAt approx.xRaw remainRaw 1).term)
+                (coefficientProduct := stepState.coefficientProduct)
+                (multiplied := stepState.multiplied)
+                (secondRounded := stepState.term)
+                (computedPowerRaw := powerRaw)
+                hinputBalanceRaw hinputAmountRaw hnominal hnominalUpper
+                hweightLowerReal hweightUpperReal hfee0 hfee1 hfeeMultiplier
+                href.adjustedInputNonnegative hadjustedRatio hadjustedFloor
+                hcomputedBase hbaseFloor hbaseStrict hfirstNonnegative
+                hfirstFloor hcoefficientFloor hmultiplyFloor hdivideFloor
+                (by rw [hstepAt] at hpartial; exact_mod_cast hpartial)
+                hcomputedPower hcomposedFloor hpoolSupplyRaw hscale
+                hnewSupplyFloor hpoolAmount houtputFloor
             · have hn3 : 3 ≤ approx.iterations := by omega
               obtain ⟨degree, evenIndex, hdegreeEven, hdegreeStop, hpartial⟩ :=
                 lowerAboveApproxExecution_later_sum hbaseRawStrict hremain0
@@ -1398,42 +1413,20 @@ theorem calc_lp_token_amount_given_token_deposits_in_execution_adverse_error_lt_
                 dsimp [computedTerm, multiplied]
                 rw [hstepAt]
                 simpa [Nat.cast_add, Nat.cast_one] using hstepFacts.2.2.1
-              exact baseline_single_sided_token_deposit_cpow_later_adverse_error_lt_precise_fee_share
+              exact baseline_single_sided_token_deposit_later_adverse_error_lt_precise_fee_share
                 coefficientProduct multiplied computedTerm
                 (n := approx.iterations) (degree := degree) (evenIndex := evenIndex)
-                hweightLowerReal hweightUpperReal
-                hcaller.2.2.2.1 hcaller.2.2.2.2.1
-                hcaller.2.2.2.2.2.1 hnominalUpper hn3 hn50 hdegreeEven hdegreeStop
+                (computedPowerRaw := powerRaw)
+                hinputBalanceRaw hinputAmountRaw hnominal hnominalUpper
+                hweightLowerReal hweightUpperReal hfee0 hfee1 hfeeMultiplier
+                href.adjustedInputNonnegative hadjustedRatio hadjustedFloor
+                hcomputedBase hbaseFloor hn3 hn50 hdegreeEven hdegreeStop
                 (by
                   intro k hk hkn
                   exact_mod_cast hcontinued k hk hkn)
                 hfirstFloor hcoefficientFloor hmultiplyFloor hdivideFloor
                 (by exact_mod_cast hpartial) hcomputedPower hcomposedFloor
-  have hnewSupplyFloor :
-      IsFloor result.newPoolSupplyRaw
-        (poolSupplyRaw * (computedPower / (BONE : ℝ))) := by
-    convert href.newPoolSupplyFloor using 1
-    dsimp [poolSupplyRaw, computedPower]
-    ring
-  have hpoolAmount :
-      (result.poolAmountRaw : ℝ) =
-        (result.newPoolSupplyRaw : ℝ) - poolSupplyRaw := by
-    rw [href.poolAmountEq]
-    simp [poolSupplyRaw]
-  have houtputFloor :
-      IsFloor result.output ((result.poolAmountRaw : ℝ) / scale) := by
-    convert href.outputFloor using 1
-    norm_num [scale, BONE, STROOP]
-  have hresult := single_sided_token_deposit_from_fixed_point_refinements_fee_share
-    (feeShare := SINGLE_SIDED_TOKEN_DEPOSIT_ADVERSE_FEE_SHARE)
-      hinputBalanceRaw hnominal href.adjustedInputNonnegative hadjustedRatio
-      hadjustedFloor hfeeMultiplier hcomputedBase hbaseFloor hweightBounds.1.le
-      hcpowBound hpoolSupplyRaw hscale hnewSupplyFloor hpoolAmount houtputFloor
-  have hpoolSupplyOriginal : poolSupplyRaw / scale = (poolSupply : ℝ) := by
-    dsimp [poolSupplyRaw, scale]
-    rw [href.poolSupplyEq]
-    push_cast
-    norm_num [BONE, STROOP]
+                hpoolSupplyRaw hscale hnewSupplyFloor hpoolAmount houtputFloor
   rw [hpoolSupplyOriginal, hnominalOriginal] at hresult
   simpa [weight, feeRate] using hresult
 
