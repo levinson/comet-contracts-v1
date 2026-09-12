@@ -359,19 +359,20 @@ theorem baseline_single_sided_withdrawal_cpow_multiterm_adverse_error_lt_five_pe
     (hbaseUpper : computedBase ≤ 1) (hbaseNonunit : computedBase < 1)
     (hdisplacement : 1 - computedBase ≤ nominalRatio)
     (hn2 : 2 ≤ n)
+    (hn50 : n ≤ 50)
     (hcontinued : ∀ k, 1 ≤ k → k < n →
       (CPOW_PRECISION : ℝ) < |(computedTerm k : ℝ)|)
     (hfirstFloor :
       IsFloor firstRounded (exactInputBinomialTerm a computedBase 1))
     (hfirstRounded : firstRounded = computedTerm 1)
-    (hcoefficientFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hcoefficientFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (coefficientProduct (k + 1))
         ((BONE : ℝ) * (a - (k : ℝ)) * (computedBase - 1)))
-    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (multiplied (k + 1))
         ((computedTerm k : ℝ) * (coefficientProduct (k + 1) : ℝ) /
           (BONE : ℝ)))
-    (hdivideTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hdivideTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (computedTerm (k + 1))
         ((multiplied (k + 1) : ℝ) / ((k : ℝ) + 1)))
     (hcomputedFractional :
@@ -437,11 +438,11 @@ theorem baseline_single_sided_withdrawal_cpow_multiterm_adverse_error_lt_five_pe
     have hscale : |T 1| * (1 / 2 : ℝ) ^ (k - 1) ≤ |T 1| := by
       nlinarith [abs_nonneg (T 1)]
     exact lt_of_le_of_lt (le_trans hterms hscale) hfirstBelowScale
-  have herrorRec : ∀ k, 1 ≤ k → k < 50 →
+  have herrorRec : ∀ k, 1 ≤ k → k < n →
       |T (k + 1) - U (k + 1)| <
         (1 + 1 / (((k + 1 : ℕ) : ℝ) * (BONE : ℝ))) * |T k - U k| +
           1 / ((k + 1 : ℕ) : ℝ) + 1 / ((k + 1 : ℕ) : ℝ) + 1 := by
-    intro k hk hk50
+    intro k hk hkn
     have hcoefficientNonpos : a - (k : ℝ) ≤ 0 := by
       have hkReal : (1 : ℝ) ≤ k := by exact_mod_cast hk
       linarith
@@ -457,24 +458,24 @@ theorem baseline_single_sided_withdrawal_cpow_multiterm_adverse_error_lt_five_pe
       (nextComputed := computedTerm (k + 1))
       (by norm_num [BONE]) (by positivity) hcoefficientBound
       (le_trans hxHalf (by norm_num)) (hexactTermMagnitude k hk)
-      (hcoefficientFloor k hk hk50)
-      (by simpa [U] using hmultiplyTermFloor k hk hk50)
-      (hdivideTermFloor k hk hk50)
+      (hcoefficientFloor k hk hkn)
+      (by simpa [U] using hmultiplyTermFloor k hk hkn)
+      (hdivideTermFloor k hk hkn)
     rw [hrec k]
     simpa [U, Nat.cast_add, Nat.cast_one, add_assoc] using hstep
-  have htermBounds := recurrence_error_budget (BONE : ℝ)
-    (fun k ↦ |T k - U k|) (by norm_num [BONE]) hfirstError herrorRec
-  have herror46 : |T 46 - U 46| < 3 * (46 : ℝ) - 2 :=
-    htermBounds 46 (by norm_num) (by norm_num)
+  have htermBounds := recurrence_error_budget_until (BONE : ℝ)
+    (fun k ↦ |T k - U k|) hn50 (by norm_num [BONE]) hfirstError herrorRec
   have htermZero : |T 0| ≤ (BONE : ℝ) := by
     dsimp [T]
     simp
-  have hstopsBy46 : |U 46| < (CPOW_PRECISION : ℝ) :=
-    pool_operating_base_converges_by_iteration_46
-      T ha0 ha1 hbaseLower (le_trans hbaseUpper (by norm_num))
-        htermZero hrec herror46
   have hn46 : n ≤ 46 := by
     by_contra hn
+    have herror46 : |T 46 - U 46| < 3 * (46 : ℝ) - 2 :=
+      htermBounds 46 (by norm_num) (by omega)
+    have hstopsBy46 : |U 46| < (CPOW_PRECISION : ℝ) :=
+      pool_operating_base_converges_by_iteration_46
+        T ha0 ha1 hbaseLower (le_trans hbaseUpper (by norm_num))
+          htermZero hrec herror46
     have hstillRunning := hcontinued 46 (by norm_num) (by omega)
     dsimp [U] at hstopsBy46
     linarith
@@ -483,9 +484,8 @@ theorem baseline_single_sided_withdrawal_cpow_multiterm_adverse_error_lt_five_pe
   have htermError :
       |T (n - 1) - U (n - 1)| < 3 * ((n - 1 : ℕ) : ℝ) - 2 :=
     htermBounds (n - 1) (by omega) (by omega)
-  have hsumRaw := recurrence_implies_partial_sum_error_budget (N := n)
-    (BONE : ℝ) T U (by norm_num [BONE]) hfirstError herrorRec
-      (by omega) (by omega)
+  have hsumRaw := recurrence_implies_partial_sum_error_budget_until
+    (BONE : ℝ) T U (by omega) hn50 (by norm_num [BONE]) hfirstError herrorRec
   have hsum : |exactPartial - computedFractional| < accumulatedError n := by
     rw [hexactPartial, hcomputedFractional, accumulatedError]
     convert hsumRaw using 1
@@ -715,19 +715,20 @@ theorem baseline_single_sided_withdrawal_multiterm_adverse_error_lt_five_percent
     (hintegerPart : 1 ≤ integerPart)
     (hcomputedExponentSplit : computedExponent = (integerPart : ℝ) + a)
     (hn2 : 2 ≤ n)
+    (hn50 : n ≤ 50)
     (hcontinued : ∀ k, 1 ≤ k → k < n →
       (CPOW_PRECISION : ℝ) < |(computedTerm k : ℝ)|)
     (hfirstFloor :
       IsFloor firstRounded (exactInputBinomialTerm a computedBase 1))
     (hfirstRounded : firstRounded = computedTerm 1)
-    (hcoefficientFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hcoefficientFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (coefficientProduct (k + 1))
         ((BONE : ℝ) * (a - (k : ℝ)) * (computedBase - 1)))
-    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hmultiplyTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (multiplied (k + 1))
         ((computedTerm k : ℝ) * (coefficientProduct (k + 1) : ℝ) /
           (BONE : ℝ)))
-    (hdivideTermFloor : ∀ k, 1 ≤ k → k < 50 →
+    (hdivideTermFloor : ∀ k, 1 ≤ k → k < n →
       IsFloor (computedTerm (k + 1))
         ((multiplied (k + 1) : ℝ) / ((k : ℝ) + 1)))
     (hcomputedFractional :
@@ -772,7 +773,7 @@ theorem baseline_single_sided_withdrawal_multiterm_adverse_error_lt_five_percent
         coefficientProduct multiplied computedTerm hweight0 hweight1 hnominal0
           hnominalPositive ha0 ha1 hintegerPart hcomputedExponentSplit
           hexponent.2 hbaseLower hbase.2 hbaseNonunit hdisplacement hn2
-          hcontinued hfirstFloor hfirstRounded hcoefficientFloor
+          hn50 hcontinued hfirstFloor hfirstRounded hcoefficientFloor
           hmultiplyTermFloor hdivideTermFloor hcomputedFractional hwholeTrace
           hcomputedPower hcomposedCeil
     exact single_sided_withdrawal_from_fixed_point_refinements
@@ -893,7 +894,7 @@ theorem baseline_single_sided_withdrawal_unit_base_adverse_error_lt_five_percent
     (hexponentFloor :
       IsFloor computedExponentRaw ((BONE : ℝ) * (1 / weight)))
     (hunitBase : computedBase = 1)
-    (hcomputedPower : computedPower = (BONE : ℝ))
+    (hcomputedPower : (BONE : ℝ) ≤ computedPower)
     (hfeeMultiplier :
       feeMultiplier = 1 - singleSidedWithdrawalFeeRate weight feeRate)
     (hscale : 0 < scale)
@@ -914,7 +915,7 @@ theorem baseline_single_sided_withdrawal_unit_base_adverse_error_lt_five_percent
     single_sided_withdrawal_minimum_fee_power_value_positive
       hweight0 hweight1 hnominalPositive
   have hconservative := baseline_exact_input_cpow_unit_base_has_no_adverse_error
-    (computedExponent := computedExponent) hunitBase (le_of_eq hcomputedPower.symm)
+    (computedExponent := computedExponent) hunitBase hcomputedPower
   have hfeeShare :
       0 < singleSidedWithdrawalMinimumFeePowerValue weight nominalRatio / 20 :=
     div_pos hfeePositive (by norm_num)

@@ -17,6 +17,7 @@ import CometCPow.ExactInputSwapSource
 import CometCPow.ExactOutputSwap
 import CometCPow.ExactOutputSwapSource
 import CometCPow.SingleSidedWithdrawal
+import CometCPow.SingleSidedWithdrawalSource
 import CometCPow.SingleSidedDeposit
 import CometCPow.SingleSidedDepositSource
 import CometCPow.SingleSidedTokenDeposit
