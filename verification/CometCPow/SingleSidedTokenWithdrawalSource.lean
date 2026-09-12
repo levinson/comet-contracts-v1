@@ -936,9 +936,10 @@ theorem calcLpTokenAmountGivenTokenWithdrawalAmountExecution_refines
 
 /-
 Every successful source-shaped exact-token-output withdrawal has pool-adverse
-error strictly below five percent of the adjusted weighted minimum-fee value.
+error strictly below `4751 / 100000 = 4.751%` of the adjusted weighted
+minimum-fee value.
 -/
-theorem calc_lp_token_amount_given_token_withdrawal_amount_execution_adverse_error_lt_five_percent_min_fee
+theorem calc_lp_token_amount_given_token_withdrawal_amount_execution_adverse_error_lt_precise_fee_share
     {inputBalance inputScalar inputAmount poolSupply inputWeight fee : ℕ}
     {result : SingleSidedTokenWithdrawalExecutionResult}
     (hinputBalance : 0 < inputBalance) (hinputScalar : 0 < inputScalar)
@@ -952,9 +953,10 @@ theorem calc_lp_token_amount_given_token_withdrawal_amount_execution_adverse_err
     singleSidedTokenWithdrawalIdealInput (poolSupply : ℝ)
           ((inputWeight : ℝ) / STROOP) ((fee : ℝ) / STROOP)
           ((inputAmount : ℝ) / inputBalance) - (result.output : ℝ) <
-      singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue (poolSupply : ℝ)
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue (poolSupply : ℝ)
           ((inputWeight : ℝ) / STROOP) ((fee : ℝ) / STROOP)
-          ((inputAmount : ℝ) / inputBalance) / 20 := by
+          ((inputAmount : ℝ) / inputBalance) := by
   have href := calcLpTokenAmountGivenTokenWithdrawalAmountExecution_refines
     hinputBalance hinputScalar hinputAmount hpoolSupply hweightUpper hfeeUpper
       hexec
@@ -1068,8 +1070,9 @@ theorem calc_lp_token_amount_given_token_withdrawal_amount_execution_adverse_err
   have hrawResult :
       singleSidedTokenWithdrawalIdealInput (poolSupplyRaw / scale)
             weight feeRate nominalRatio - (result.output : ℝ) <
-        singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
-            (poolSupplyRaw / scale) weight feeRate nominalRatio / 20 := by
+        SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+          singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
+            (poolSupplyRaw / scale) weight feeRate nominalRatio := by
     cases hcpowCase : result.cpow with
     | integer integerPart wholeRaw =>
         have hcpowExec :
@@ -1137,7 +1140,7 @@ theorem calc_lp_token_amount_given_token_withdrawal_amount_execution_adverse_err
                 CPOW_PRECISION := by
             rw [← hnOne]
             exact_mod_cast hstopRaw
-          exact baseline_single_sided_token_withdrawal_first_term_adverse_error_lt_five_percent_min_fee
+          exact baseline_single_sided_token_withdrawal_first_term_adverse_error_lt_precise_fee_share
             hinputBalanceRaw hinputAmountRaw hnominal hweightLowerReal
               hweightUpperReal hfee1 hfeeMultiplier hbeforeFeeRatio
               hbeforeFeeCeil hcomputedBase hbaseFloor hbasePositive hfirstFloor
@@ -1171,7 +1174,7 @@ theorem calc_lp_token_amount_given_token_withdrawal_amount_execution_adverse_err
             have hdivideFloor :
                 IsFloor stepState.term ((stepState.multiplied : ℝ) / 2) := by
               simpa using hstepFacts.2.2.1
-            exact baseline_single_sided_token_withdrawal_second_term_adverse_error_lt_five_percent_min_fee
+            exact baseline_single_sided_token_withdrawal_second_term_adverse_error_lt_precise_fee_share
               hinputBalanceRaw hinputAmountRaw hnominal hnominalUpper
                 hweightLowerReal hweightUpperReal hfee0 hfeeUpperReal
                 hfeeMultiplier hbeforeFeeRatio hbeforeFeeCeil hcomputedBase
@@ -1248,7 +1251,7 @@ theorem calc_lp_token_amount_given_token_withdrawal_amount_execution_adverse_err
               dsimp [computedTerm, multiplied]
               rw [hstepAt]
               simpa [Nat.cast_add, Nat.cast_one] using hstepFacts.2.2.1
-            exact baseline_single_sided_token_withdrawal_later_adverse_error_lt_five_percent_min_fee
+            exact baseline_single_sided_token_withdrawal_later_adverse_error_lt_precise_fee_share
               coefficientProduct multiplied computedTerm
                 hinputBalanceRaw hinputAmountRaw hnominal hnominalUpper
                 hweightLowerReal hweightUpperReal hfee0 hfeeUpperReal

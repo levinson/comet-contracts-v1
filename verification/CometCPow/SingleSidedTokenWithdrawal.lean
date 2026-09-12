@@ -44,6 +44,25 @@ noncomputable def singleSidedTokenWithdrawalComputedMinimumFeePowerValue
   MIN_FEE_RATE *
     ((BONE : ℝ) * weight * (1 - weight) * (1 - computedBase))
 
+/-- A strict rational ceiling on exact-token-output withdrawal adverse error. -/
+noncomputable def SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE : ℝ :=
+  4751 / 100000
+
+/-- The precise later recurrence budget relative to the minimum fee rate. -/
+noncomputable def SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE : ℝ :=
+  MIN_FEE_RATE * (47501 / 1000000)
+
+theorem single_sided_token_withdrawal_adverse_fee_share_value :
+    SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE =
+      (4751 : ℝ) / 100000 := by
+  rfl
+
+theorem single_sided_token_withdrawal_later_fee_rate_value :
+    SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE =
+      (47501 : ℝ) / 1000000000000 := by
+  norm_num [SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE,
+    MIN_FEE_RATE, MIN_FEE, STROOP]
+
 /--
 For a fractional exponent, reducing a base in `[0,1]` by `q - r` reduces its
 power by at least `weight * (q - r)`. This is the favorable-rounding margin
@@ -155,12 +174,14 @@ theorem single_sided_token_withdrawal_absorb_base_rounding
       singleSidedTokenWithdrawalIdealBase weight feeRate nominalRatio)
     (hcpow :
       computedPower - (BONE : ℝ) * computedBase ^ weight <
-        singleSidedTokenWithdrawalComputedMinimumFeePowerValue
-          weight computedBase / 20) :
+        SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+          singleSidedTokenWithdrawalComputedMinimumFeePowerValue
+            weight computedBase) :
     computedPower - (BONE : ℝ) *
         singleSidedTokenWithdrawalIdealBase weight feeRate nominalRatio ^ weight <
-      singleSidedTokenWithdrawalAdjustedMinimumFeePowerValue
-        weight feeRate nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        singleSidedTokenWithdrawalAdjustedMinimumFeePowerValue
+          weight feeRate nominalRatio := by
   let r : ℝ := nominalRatio /
     (1 - singleSidedWithdrawalFeeRate weight feeRate)
   let q : ℝ := 1 - computedBase
@@ -173,18 +194,22 @@ theorem single_sided_token_withdrawal_absorb_base_rounding
     hweight0 hweight1 hadjusted0 hrq hq1
   have hB0 : (0 : ℝ) ≤ BONE := by norm_num [BONE]
   have hdropScaled := mul_le_mul_of_nonneg_left hdrop hB0
-  have hrate0 : 0 ≤ MIN_FEE_RATE / 20 := by
-    rw [minimum_fee_rate_value]
+  have hrate0 :
+      0 ≤ SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE * MIN_FEE_RATE := by
+    rw [single_sided_token_withdrawal_adverse_fee_share_value,
+      minimum_fee_rate_value]
     norm_num
   have hcoefficient :
-      (MIN_FEE_RATE / 20) * (1 - weight) ≤ 1 := by
-    rw [minimum_fee_rate_value]
+      (SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
+          (1 - weight) ≤ 1 := by
+    rw [single_sided_token_withdrawal_adverse_fee_share_value,
+      minimum_fee_rate_value]
     nlinarith
   have hroundingAbsorbed :
-      (MIN_FEE_RATE / 20) *
+      (SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
           ((BONE : ℝ) * weight * (1 - weight) * q) -
         (BONE : ℝ) * weight * (q - r) ≤
-      (MIN_FEE_RATE / 20) *
+      (SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
           ((BONE : ℝ) * weight * (1 - weight) * r) := by
     have hBw0 : 0 ≤ (BONE : ℝ) * weight := mul_nonneg hB0 hweight0
     have hgap0 : 0 ≤ q - r := sub_nonneg.mpr hrq
@@ -214,7 +239,7 @@ theorem single_sided_token_withdrawal_absorb_base_rounding
   have hraw :
       computedPower - (BONE : ℝ) *
           singleSidedTokenWithdrawalIdealBase weight feeRate nominalRatio ^ weight <
-        (MIN_FEE_RATE / 20) *
+        (SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
             ((BONE : ℝ) * weight * (1 - weight) * (1 - computedBase)) -
           (BONE : ℝ) * weight *
             (1 - computedBase -
@@ -225,22 +250,23 @@ theorem single_sided_token_withdrawal_absorb_base_rounding
   calc
     computedPower - (BONE : ℝ) *
           singleSidedTokenWithdrawalIdealBase weight feeRate nominalRatio ^ weight <
-        (MIN_FEE_RATE / 20) *
+        (SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
             ((BONE : ℝ) * weight * (1 - weight) * (1 - computedBase)) -
           (BONE : ℝ) * weight *
             (1 - computedBase -
               nominalRatio /
                 (1 - singleSidedWithdrawalFeeRate weight feeRate)) := hraw
-    _ ≤ (MIN_FEE_RATE / 20) *
+    _ ≤ (SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
         ((BONE : ℝ) * weight * (1 - weight) *
           (nominalRatio /
             (1 - singleSidedWithdrawalFeeRate weight feeRate))) := hroundingAbsorbed
-    _ = MIN_FEE_RATE *
+    _ = SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        (MIN_FEE_RATE *
           ((BONE : ℝ) * weight * (1 - weight) * nominalRatio) /
-            (1 - singleSidedWithdrawalFeeRate weight feeRate) / 20 := by ring
+            (1 - singleSidedWithdrawalFeeRate weight feeRate)) := by ring
 
 /-- Compose the raw power bound with the LP-supply floor and output ceiling. -/
-theorem single_sided_token_withdrawal_adverse_error_lt_five_percent_min_fee
+theorem single_sided_token_withdrawal_adverse_error_lt_precise_fee_share
     {poolSupply weight feeRate nominalRatio computedBase computedPower
       computedInput scale : ℝ}
     (hpoolSupply : 0 < poolSupply) (hscale : 0 < scale)
@@ -253,15 +279,17 @@ theorem single_sided_token_withdrawal_adverse_error_lt_five_percent_min_fee
       singleSidedTokenWithdrawalIdealBase weight feeRate nominalRatio)
     (hcpow :
       computedPower - (BONE : ℝ) * computedBase ^ weight <
-        singleSidedTokenWithdrawalComputedMinimumFeePowerValue
-          weight computedBase / 20)
+        SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+          singleSidedTokenWithdrawalComputedMinimumFeePowerValue
+            weight computedBase)
     (hcomputedInput :
       poolSupply / scale * (1 - computedPower / (BONE : ℝ)) ≤
         computedInput) :
     singleSidedTokenWithdrawalIdealInput
         (poolSupply / scale) weight feeRate nominalRatio - computedInput <
-      singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
-        (poolSupply / scale) weight feeRate nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
+          (poolSupply / scale) weight feeRate nominalRatio := by
   have hB : (0 : ℝ) < BONE := by norm_num [BONE]
   have hraw := single_sided_token_withdrawal_absorb_base_rounding
     hweight0 hweight1 hadjusted0 hbasePositive hbase hcpow
@@ -282,10 +310,12 @@ theorem single_sided_token_withdrawal_adverse_error_lt_five_percent_min_fee
       field_simp [ne_of_gt hB, ne_of_gt hscale]
       ring
     _ < (poolSupply / scale / (BONE : ℝ)) *
-        (singleSidedTokenWithdrawalAdjustedMinimumFeePowerValue
-          weight feeRate nominalRatio / 20) := hscaled
-    _ = singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
-          (poolSupply / scale) weight feeRate nominalRatio / 20 := by
+        (SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+          singleSidedTokenWithdrawalAdjustedMinimumFeePowerValue
+            weight feeRate nominalRatio) := hscaled
+    _ = SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
+          (poolSupply / scale) weight feeRate nominalRatio := by
       rw [singleSidedTokenWithdrawalAdjustedMinimumFeePowerValue,
         singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue]
       field_simp [ne_of_gt hB, ne_of_gt hscale, ne_of_gt hfeeDenom]
@@ -382,9 +412,9 @@ theorem baseline_single_sided_token_withdrawal_cpow_unit_base_has_no_adverse_err
 
 /--
 At the second stop, the doubled negative term leaves only a sub-`1/BONE`
-coefficient-floor effect, far below five percent of the weighted minimum fee.
+coefficient-floor effect, far below the selected weighted minimum-fee share.
 -/
-theorem baseline_single_sided_token_withdrawal_cpow_second_term_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_token_withdrawal_cpow_second_term_adverse_error_lt_precise_fee_share
     {weight computedBase computedFractional computedPower : ℝ}
     {firstRounded coefficientProduct multiplied secondRounded computedPowerRaw : ℤ}
     (hweightLower : (MIN_WEIGHT : ℝ) / STROOP ≤ weight)
@@ -405,8 +435,9 @@ theorem baseline_single_sided_token_withdrawal_cpow_second_term_adverse_error_lt
     (hcomputedPower : computedPower = (computedPowerRaw : ℝ))
     (hcomposedFloor : IsFloor computedPowerRaw computedFractional) :
     computedPower - (BONE : ℝ) * computedBase ^ weight <
-      singleSidedTokenWithdrawalComputedMinimumFeePowerValue
-        weight computedBase / 20 := by
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        singleSidedTokenWithdrawalComputedMinimumFeePowerValue
+          weight computedBase := by
   have hweights := single_sided_token_deposit_configured_weight_bounds
     hweightLower hweightUpper
   have hB : (0 : ℝ) < BONE := by norm_num [BONE]
@@ -517,11 +548,15 @@ theorem baseline_single_sided_token_withdrawal_cpow_second_term_adverse_error_lt
       _ = -T 1 / (BONE : ℝ) := by ring
   have hfeeScale :
       |T 1| / (BONE : ℝ) <
-        FIVE_PERCENT_MIN_FEE_RATE * ((1 - weight) * |T 1|) := by
+        (SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
+          ((1 - weight) * |T 1|) := by
     have hfirstPositive : 0 < |T 1| := abs_pos.mpr hfirstNonpos.ne
     have hconstant :
-        1 / (BONE : ℝ) < FIVE_PERCENT_MIN_FEE_RATE * (1 - weight) := by
-      rw [five_percent_minimum_fee_rate_value]
+        1 / (BONE : ℝ) <
+          (SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
+            (1 - weight) := by
+      rw [single_sided_token_withdrawal_adverse_fee_share_value,
+        minimum_fee_rate_value]
       norm_num [BONE, MAX_WEIGHT, STROOP] at hweightUpper ⊢
       linarith
     have := mul_lt_mul_of_pos_right hconstant hfirstPositive
@@ -529,18 +564,36 @@ theorem baseline_single_sided_token_withdrawal_cpow_second_term_adverse_error_lt
   have hfirstMagnitude : |T 1| = (BONE : ℝ) * weight * (1 - computedBase) := by
     simpa [T] using hfirstFacts.2
   have hfeeEq :
-      FIVE_PERCENT_MIN_FEE_RATE * ((1 - weight) * |T 1|) =
-        singleSidedTokenWithdrawalComputedMinimumFeePowerValue
-          weight computedBase / 20 := by
+      (SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
+          ((1 - weight) * |T 1|) =
+        SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+          singleSidedTokenWithdrawalComputedMinimumFeePowerValue
+            weight computedBase := by
     rw [singleSidedTokenWithdrawalComputedMinimumFeePowerValue,
-      hfirstMagnitude, five_percent_minimum_fee_rate_value,
-      minimum_fee_rate_value]
+      hfirstMagnitude]
     ring
   rw [hfeeEq] at hfeeScale
   exact lt_trans hadverseSmall hfeeScale
 
+/-- The in-band augmented recurrence fits within `4.7501%` of minimum fee. -/
+theorem single_sided_token_withdrawal_augmented_error_lt_later_fee_rate
+    {n : ℕ} {weightedFirstTerm : ℝ}
+    (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
+    (hcontinue :
+      (CPOW_PRECISION : ℝ) <
+        weightedFirstTerm * ((1 : ℝ) / 2 / 2) *
+            ((1 : ℝ) / 2) ^ (n - 3) +
+          (3 * ((n - 1 : ℕ) : ℝ) - 2)) :
+    accumulatedError n + (3 * (n : ℝ) - 2) <
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE * weightedFirstTerm := by
+  interval_cases n <;>
+    norm_num [accumulatedError,
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE, MIN_FEE_RATE,
+      MIN_FEE, STROOP, CPOW_PRECISION] at hcontinue ⊢ <;>
+    linarith
+
 /-- Full later-term baseline `c_pow` bound for the direct-weight withdrawal. -/
-theorem baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_precise_fee_share
     (coefficientProduct multiplied computedTerm : ℕ → ℤ)
     {n : ℕ}
     {weight computedBase computedFractional computedPower : ℝ}
@@ -572,8 +625,9 @@ theorem baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_five_
     (hcomputedPower : computedPower = (computedPowerRaw : ℝ))
     (hcomposedFloor : IsFloor computedPowerRaw computedFractional) :
     computedPower - (BONE : ℝ) * computedBase ^ weight <
-      singleSidedTokenWithdrawalComputedMinimumFeePowerValue
-        weight computedBase / 20 := by
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        singleSidedTokenWithdrawalComputedMinimumFeePowerValue
+          weight computedBase := by
   have hweights := single_sided_token_deposit_configured_weight_bounds
     hweightLower hweightUpper
   let T : ℕ → ℝ := exactInputBinomialTerm weight computedBase
@@ -662,7 +716,7 @@ theorem baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_five_
     htermBounds (n - 1) (by omega) (by omega)
   have hcontinue := continued_loop_forces_weighted_first_term_scale
     T hweights.1.le hweights.2.le hx (by norm_num) hrec hn3 hprevious hpreviousError
-  have hbudget := augmented_error_lt_five_percent_min_fee_of_weighted_later_terms
+  have hbudget := single_sided_token_withdrawal_augmented_error_lt_later_fee_rate
     hn3 hn46 (by simpa using hcontinue)
   let exactPartial : ℝ :=
     ∑ k ∈ Finset.range (n + 1), T k
@@ -721,14 +775,30 @@ theorem baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_five_
     rw [hfirstMagnitude]
     ring
   rw [hweightedFirst] at hbudget
+  have hscale0 :
+      0 ≤ (BONE : ℝ) * weight * (1 - weight) * (1 - computedBase) :=
+    mul_nonneg
+      (mul_nonneg (mul_nonneg (by norm_num [BONE]) hweights.1.le)
+        (by linarith [hweights.2])) hq0.le
+  have hrate :
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE ≤
+        SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE * MIN_FEE_RATE := by
+    rw [single_sided_token_withdrawal_later_fee_rate_value,
+      single_sided_token_withdrawal_adverse_fee_share_value,
+      minimum_fee_rate_value]
+    norm_num
+  have hscaledRate := mul_le_mul_of_nonneg_right hrate hscale0
   calc
     computedPower - (BONE : ℝ) * computedBase ^ weight <
         accumulatedError n + (3 * (n : ℝ) - 2) := hadverse
-    _ < FIVE_PERCENT_MIN_FEE_RATE *
+    _ < SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE *
         ((BONE : ℝ) * weight * (1 - weight) * (1 - computedBase)) := hbudget
-    _ = MIN_FEE_RATE *
-        ((BONE : ℝ) * weight * (1 - weight) * (1 - computedBase)) / 20 := by
-      rw [five_percent_minimum_fee_rate_value, minimum_fee_rate_value]
+    _ ≤ (SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE * MIN_FEE_RATE) *
+        ((BONE : ℝ) * weight * (1 - weight) * (1 - computedBase)) :=
+      hscaledRate
+    _ = SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        (MIN_FEE_RATE *
+          ((BONE : ℝ) * weight * (1 - weight) * (1 - computedBase))) := by
       ring
 
 /-- Production output, weight, and fee bounds keep the exact adjusted ratio below `3/8`. -/
@@ -1017,8 +1087,9 @@ theorem single_sided_token_withdrawal_pool_favoring_power_has_no_adverse_error
         computedInput) :
     singleSidedTokenWithdrawalIdealInput
         (poolSupply / scale) weight feeRate nominalRatio - computedInput <
-      singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
-        (poolSupply / scale) weight feeRate nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
+          (poolSupply / scale) weight feeRate nominalRatio := by
   have hB : (0 : ℝ) < BONE := by norm_num [BONE]
   have hsupply : 0 < poolSupply / scale := div_pos hpoolSupply hscale
   have hidealLe :
@@ -1040,16 +1111,20 @@ theorem single_sided_token_withdrawal_pool_favoring_power_has_no_adverse_error
           linarith
       _ ≤ computedInput := hcomputedInput
   have hfeePositive :
-      0 < singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
-          (poolSupply / scale) weight feeRate nominalRatio / 20 := by
+      0 < SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
+          (poolSupply / scale) weight feeRate nominalRatio := by
     rw [singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue,
       minimum_fee_rate_value]
+    rw [single_sided_token_withdrawal_adverse_fee_share_value]
     have hraw :
         0 < (1 / 1000000 : ℝ) *
           ((poolSupply / scale) * weight * (1 - weight) * nominalRatio) := by
       exact mul_pos (by norm_num)
         (mul_pos (mul_pos (mul_pos hsupply hweight0) (by linarith)) hnominal)
-    exact div_pos (div_pos hraw hfeeDenom) (by norm_num)
+    have hpositive := mul_pos (by norm_num : (0 : ℝ) < 4751 / 100000)
+      (div_pos hraw hfeeDenom)
+    exact hpositive
   linarith
 
 /--
@@ -1103,7 +1178,7 @@ theorem single_sided_token_withdrawal_configured_caller_bounds
     lt_of_le_of_lt hbaseIdeal hidealStrict⟩
 
 /-- Instantiate the exact-token-output operation theorem from caller refinements. -/
-theorem single_sided_token_withdrawal_from_fixed_point_refinements
+theorem single_sided_token_withdrawal_from_fixed_point_refinements_precise_fee_share
     {inputBalance inputAmount nominalRatio feeMultiplier beforeFeeRatio
       computedBase computedPower poolSupply weight feeRate scale : ℝ}
     {beforeFee computedBaseRaw newPoolSupply result output : ℤ}
@@ -1122,8 +1197,9 @@ theorem single_sided_token_withdrawal_from_fixed_point_refinements
     (hbasePositive : 0 < computedBase)
     (hcpow :
       computedPower - (BONE : ℝ) * computedBase ^ weight <
-        singleSidedTokenWithdrawalComputedMinimumFeePowerValue
-          weight computedBase / 20)
+        SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+          singleSidedTokenWithdrawalComputedMinimumFeePowerValue
+            weight computedBase)
     (hpoolSupply : 0 < poolSupply) (hscale : 0 < scale)
     (hnewSupplyFloor :
       IsFloor newPoolSupply (poolSupply * (computedPower / (BONE : ℝ))))
@@ -1131,8 +1207,9 @@ theorem single_sided_token_withdrawal_from_fixed_point_refinements
     (hdownscaleCeil : IsCeil output ((result : ℝ) / scale)) :
     singleSidedTokenWithdrawalIdealInput
         (poolSupply / scale) weight feeRate nominalRatio - (output : ℝ) <
-      singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
-        (poolSupply / scale) weight feeRate nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
+          (poolSupply / scale) weight feeRate nominalRatio := by
   have hcaller := single_sided_token_withdrawal_configured_caller_bounds
     hinputBalance hinputAmount hnominal hweightLower hweightUpper hfee1
       hfeeMultiplier hbeforeFeeRatio hbeforeFeeCeil hcomputedBase hbaseFloor
@@ -1145,13 +1222,13 @@ theorem single_sided_token_withdrawal_from_fixed_point_refinements
     exact (div_pos hcaller.1 hcaller.2.1).le
   have hinput := single_sided_token_withdrawal_input_ceil_chain
     hscale hnewSupplyFloor hresult hdownscaleCeil
-  exact single_sided_token_withdrawal_adverse_error_lt_five_percent_min_fee
+  exact single_sided_token_withdrawal_adverse_error_lt_precise_fee_share
     hpoolSupply hscale hweights.1.le hweights.2.le
       (by rw [← hfeeMultiplier]; exact hcaller.2.1) hadjusted0
       hbasePositive hcaller.2.2.2.1 hcpow hinput
 
 /-- Complete corrected-first-term comparison for `wdr_tokn_amt_out_get_lp_tokns_in`. -/
-theorem baseline_single_sided_token_withdrawal_first_term_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_token_withdrawal_first_term_adverse_error_lt_precise_fee_share
     {inputBalance inputAmount nominalRatio feeMultiplier beforeFeeRatio
       computedBase computedFractional computedPower poolSupply weight feeRate
       scale : ℝ}
@@ -1184,8 +1261,9 @@ theorem baseline_single_sided_token_withdrawal_first_term_adverse_error_lt_five_
     (hdownscaleCeil : IsCeil output ((result : ℝ) / scale)) :
     singleSidedTokenWithdrawalIdealInput
         (poolSupply / scale) weight feeRate nominalRatio - (output : ℝ) <
-      singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
-        (poolSupply / scale) weight feeRate nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
+          (poolSupply / scale) weight feeRate nominalRatio := by
   have hcaller := single_sided_token_withdrawal_configured_caller_bounds
     hinputBalance hinputAmount hnominal hweightLower hweightUpper hfee1
       hfeeMultiplier hbeforeFeeRatio hbeforeFeeCeil hcomputedBase hbaseFloor
@@ -1205,20 +1283,25 @@ theorem baseline_single_sided_token_withdrawal_first_term_adverse_error_lt_five_
         (by linarith [hweights.2])) (by linarith [hcaller.2.2.2.2]))
   have hcpow :
       computedPower - (BONE : ℝ) * computedBase ^ weight <
-        singleSidedTokenWithdrawalComputedMinimumFeePowerValue
-          weight computedBase / 20 := by
+        SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+          singleSidedTokenWithdrawalComputedMinimumFeePowerValue
+            weight computedBase := by
     have hshare :
-        0 < singleSidedTokenWithdrawalComputedMinimumFeePowerValue
-          weight computedBase / 20 := div_pos hfeePositive (by norm_num)
+        0 < SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+          singleSidedTokenWithdrawalComputedMinimumFeePowerValue
+            weight computedBase :=
+      mul_pos (by
+        rw [single_sided_token_withdrawal_adverse_fee_share_value]
+        norm_num) hfeePositive
     linarith
-  exact single_sided_token_withdrawal_from_fixed_point_refinements
+  exact single_sided_token_withdrawal_from_fixed_point_refinements_precise_fee_share
     hinputBalance hinputAmount hnominal hweightLower hweightUpper hfee1
       hfeeMultiplier hbeforeFeeRatio hbeforeFeeCeil hcomputedBase hbaseFloor
       hbasePositive hcpow hpoolSupply hscale
       hnewSupplyFloor hresult hdownscaleCeil
 
 /-- Complete second-term comparison for `wdr_tokn_amt_out_get_lp_tokns_in`. -/
-theorem baseline_single_sided_token_withdrawal_second_term_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_token_withdrawal_second_term_adverse_error_lt_precise_fee_share
     {inputBalance inputAmount nominalRatio feeMultiplier beforeFeeRatio
       computedBase computedFractional computedPower poolSupply weight feeRate
       scale : ℝ}
@@ -1260,8 +1343,9 @@ theorem baseline_single_sided_token_withdrawal_second_term_adverse_error_lt_five
     (hdownscaleCeil : IsCeil output ((result : ℝ) / scale)) :
     singleSidedTokenWithdrawalIdealInput
         (poolSupply / scale) weight feeRate nominalRatio - (output : ℝ) <
-      singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
-        (poolSupply / scale) weight feeRate nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
+          (poolSupply / scale) weight feeRate nominalRatio := by
   have hfee1 : feeRate ≤ 1 := by
     exact le_trans hfeeUpper (by norm_num [MAX_FEE, STROOP])
   have hcaller := single_sided_token_withdrawal_configured_caller_bounds
@@ -1269,11 +1353,11 @@ theorem baseline_single_sided_token_withdrawal_second_term_adverse_error_lt_five
       hfeeMultiplier hbeforeFeeRatio hbeforeFeeCeil hcomputedBase hbaseFloor
   by_cases hbaseHalf : 1 / 2 ≤ computedBase
   · have hcpow :=
-      baseline_single_sided_token_withdrawal_cpow_second_term_adverse_error_lt_five_percent_min_fee
+      baseline_single_sided_token_withdrawal_cpow_second_term_adverse_error_lt_precise_fee_share
         hweightLower hweightUpper hbaseHalf hcaller.2.2.2.2 hfirstFloor
           hcoefficientFloor hmultiplyFloor hdivideFloor hcomputedFractional
           hcomputedPower hcomposedFloor
-    exact single_sided_token_withdrawal_from_fixed_point_refinements
+    exact single_sided_token_withdrawal_from_fixed_point_refinements_precise_fee_share
       hinputBalance hinputAmount hnominal hweightLower hweightUpper hfee1
         hfeeMultiplier hbeforeFeeRatio hbeforeFeeCeil hcomputedBase hbaseFloor
         hbasePositive hcpow hpoolSupply hscale hnewSupplyFloor hresult
@@ -1345,7 +1429,7 @@ Complete later-term comparison for `wdr_tokn_amt_out_get_lp_tokns_in`
 across both base regions. Inside the standard operating band, the concrete
 trace itself proves that the loop must stop no later than iteration 46.
 -/
-theorem baseline_single_sided_token_withdrawal_later_adverse_error_lt_five_percent_min_fee
+theorem baseline_single_sided_token_withdrawal_later_adverse_error_lt_precise_fee_share
     (coefficientProduct multiplied computedTerm : ℕ → ℤ)
     {n : ℕ}
     {inputBalance inputAmount nominalRatio feeMultiplier beforeFeeRatio
@@ -1397,8 +1481,9 @@ theorem baseline_single_sided_token_withdrawal_later_adverse_error_lt_five_perce
     (hdownscaleCeil : IsCeil output ((result : ℝ) / scale)) :
     singleSidedTokenWithdrawalIdealInput
         (poolSupply / scale) weight feeRate nominalRatio - (output : ℝ) <
-      singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
-        (poolSupply / scale) weight feeRate nominalRatio / 20 := by
+      SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE *
+        singleSidedTokenWithdrawalAdjustedMinimumFeeInputValue
+          (poolSupply / scale) weight feeRate nominalRatio := by
   have hfee1 : feeRate ≤ 1 := by
     exact le_trans hfeeUpper (by norm_num [MAX_FEE, STROOP])
   have hcaller := single_sided_token_withdrawal_configured_caller_bounds
@@ -1406,12 +1491,12 @@ theorem baseline_single_sided_token_withdrawal_later_adverse_error_lt_five_perce
       hfeeMultiplier hbeforeFeeRatio hbeforeFeeCeil hcomputedBase hbaseFloor
   by_cases hbaseHalf : 1 / 2 ≤ computedBase
   · have hcpow :=
-      baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_five_percent_min_fee
+      baseline_single_sided_token_withdrawal_cpow_later_adverse_error_lt_precise_fee_share
         coefficientProduct multiplied computedTerm hweightLower hweightUpper
           hbaseHalf hcaller.2.2.2.2 hn3 hn50 hcontinued hfirstFloor
           hcoefficientFloor hmultiplyTermFloor hdivideTermFloor
           hcomputedFractional hcomputedPower hcomposedFloor
-    exact single_sided_token_withdrawal_from_fixed_point_refinements
+    exact single_sided_token_withdrawal_from_fixed_point_refinements_precise_fee_share
       hinputBalance hinputAmount hnominal hweightLower hweightUpper hfee1
         hfeeMultiplier hbeforeFeeRatio hbeforeFeeCeil hcomputedBase hbaseFloor
         hbasePositive hcpow hpoolSupply hscale hnewSupplyFloor hresult
