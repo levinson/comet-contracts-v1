@@ -8,9 +8,6 @@ exact-input swap path. The theorems in this module remain at the same abstract
 continuous-approximation layer as `BaselineFeeBound.lean`.
 -/
 
-/-- One thirty-second of the configured minimum swap-fee rate. -/
-noncomputable def THIRTY_SECOND_MIN_FEE_RATE : ℝ := MIN_FEE_RATE / 32
-
 /-- One percent of the configured minimum swap-fee rate. -/
 noncomputable def ONE_PERCENT_MIN_FEE_RATE : ℝ := MIN_FEE_RATE / 100
 
@@ -33,10 +30,6 @@ noncomputable def HALF_AUGMENTED_LATER_ADVERSE_FEE_SHARE : ℝ :=
 /-- The augmented half-band finite recurrence rate. -/
 noncomputable def HALF_AUGMENTED_LATER_FEE_RATE : ℝ :=
   MIN_FEE_RATE * (47501 / 1000000)
-
-theorem thirty_second_minimum_fee_rate_value :
-    THIRTY_SECOND_MIN_FEE_RATE = (1 : ℝ) / 32000000 := by
-  norm_num [THIRTY_SECOND_MIN_FEE_RATE, MIN_FEE_RATE, MIN_FEE, STROOP]
 
 theorem one_percent_minimum_fee_rate_value :
     ONE_PERCENT_MIN_FEE_RATE = (1 : ℝ) / 100000000 := by
@@ -221,37 +214,6 @@ theorem continued_loop_forces_sharp_first_term_scale
   have hcomputed := computed_term_abs_lt herror
   linarith
 
-/--
-For the configured above-one displacement bound, the sharper continuation
-threshold makes the accumulated absolute budget smaller than one thirty-second
-of the minimum-fee scale of the first term.
--/
-theorem accumulated_error_lt_thirty_second_min_fee_of_later_terms
-    {n : ℕ} {firstTerm : ℝ}
-    (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
-    (hcontinue :
-      (CPOW_PRECISION : ℝ) <
-        firstTerm * ((51 : ℝ) / 100 / 2) * ((51 : ℝ) / 100) ^ (n - 3) +
-          (3 * ((n - 1 : ℕ) : ℝ) - 2)) :
-    accumulatedError n < THIRTY_SECOND_MIN_FEE_RATE * firstTerm := by
-  interval_cases n <;>
-    norm_num [accumulatedError, THIRTY_SECOND_MIN_FEE_RATE, MIN_FEE_RATE,
-      MIN_FEE, STROOP, CPOW_PRECISION] at hcontinue ⊢ <;>
-    linarith
-
-/-- Within the production iteration range, the sharp continuation scale exceeds precision. -/
-theorem sharp_continuation_forces_first_term_above_precision
-    {n : ℕ} {firstTerm : ℝ}
-    (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
-    (hcontinue :
-      (CPOW_PRECISION : ℝ) <
-        firstTerm * ((51 : ℝ) / 100 / 2) * ((51 : ℝ) / 100) ^ (n - 3) +
-          (3 * ((n - 1 : ℕ) : ℝ) - 2)) :
-    (CPOW_PRECISION : ℝ) < firstTerm := by
-  interval_cases n <;>
-    norm_num [CPOW_PRECISION] at hcontinue ⊢ <;>
-    linarith
-
 /-- The three-fifths-band recurrence budget is below `3.9601%` of minimum fee. -/
 theorem accumulated_error_lt_three_fifths_later_fee_rate
     {n : ℕ} {firstTerm : ℝ}
@@ -299,37 +261,6 @@ theorem augmented_error_lt_half_later_fee_rate
       MIN_FEE, STROOP, CPOW_PRECISION] at hcontinue ⊢ <;>
     linarith
 
-/-- An above-one operation can spend up to `8/5` of its nominal ratio in base displacement. -/
-theorem exact_output_fee_value_dominates_first_term
-    {S a fullExponent q nominalRatio firstTerm feeValue : ℝ}
-    (hS0 : 0 ≤ S) (ha0 : 0 ≤ a)
-    (haFull : a ≤ fullExponent) (hnominal0 : 0 ≤ nominalRatio)
-    (hqNominal : q ≤ (8 / 5 : ℝ) * nominalRatio)
-    (hfirst : firstTerm = S * a * q)
-    (hfee : feeValue = MIN_FEE_RATE * (S * fullExponent * nominalRatio)) :
-    THIRTY_SECOND_MIN_FEE_RATE * firstTerm ≤ feeValue / 20 := by
-  have hSa0 : 0 ≤ S * a := mul_nonneg hS0 ha0
-  have hdisplacement :
-      S * a * q ≤ S * a * ((8 / 5 : ℝ) * nominalRatio) :=
-    mul_le_mul_of_nonneg_left hqNominal hSa0
-  have hscale0 : 0 ≤ S * nominalRatio := mul_nonneg hS0 hnominal0
-  have hexponent : S * a * nominalRatio ≤ S * fullExponent * nominalRatio := by
-    simpa [mul_assoc, mul_left_comm, mul_comm] using
-      mul_le_mul_of_nonneg_left haFull hscale0
-  calc
-    THIRTY_SECOND_MIN_FEE_RATE * firstTerm =
-        (1 / 32000000 : ℝ) * (S * a * q) := by
-      rw [hfirst, thirty_second_minimum_fee_rate_value]
-    _ ≤ (1 / 32000000 : ℝ) *
-        (S * a * ((8 / 5 : ℝ) * nominalRatio)) :=
-      mul_le_mul_of_nonneg_left hdisplacement (by norm_num)
-    _ = (1 / 20000000 : ℝ) * (S * a * nominalRatio) := by ring
-    _ ≤ (1 / 20000000 : ℝ) * (S * fullExponent * nominalRatio) :=
-      mul_le_mul_of_nonneg_left hexponent (by norm_num)
-    _ = feeValue / 20 := by
-      rw [hfee, minimum_fee_rate_value]
-      ring
-
 /-- The exact-output fee covers a one-percent first-term rate at a 1.6% share. -/
 theorem exact_output_second_iteration_fee_value_dominates_first_term
     {S a fullExponent q nominalRatio firstTerm feeValue : ℝ}
@@ -364,98 +295,6 @@ theorem exact_output_second_iteration_fee_value_dominates_first_term
     _ = EXACT_OUTPUT_SECOND_ITERATION_ADVERSE_FEE_SHARE * feeValue := by
       rw [hfee, minimum_fee_rate_value,
         exact_output_second_iteration_adverse_fee_share_value]
-
-/--
-Fractional above-one paths that continue for at least three iterations have
-adverse continuous approximation error below 5% of the spot-normalized
-minimum-fee value.
--/
-theorem baseline_exact_output_later_adverse_error_lt_five_percent_min_fee
-    (T : ℕ → ℝ)
-    {n : ℕ} {a fullExponent x previous q nominalRatio : ℝ}
-    {exactPower exactUpper computedUpper feeValue : ℝ}
-    (ha0 : 0 ≤ a) (ha1 : a ≤ 1)
-    (hx : |x| ≤ (51 : ℝ) / 100)
-    (hrec : ∀ k,
-      T (k + 1) = T k * (a - (k : ℝ)) * x / ((k : ℝ) + 1))
-    (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
-    (hprevious : (CPOW_PRECISION : ℝ) < |previous|)
-    (htermError :
-      |T (n - 1) - previous| < 3 * ((n - 1 : ℕ) : ℝ) - 2)
-    (hfirst : |T 1| = (BONE : ℝ) * a * q)
-    (haFull : a ≤ fullExponent) (hnominal0 : 0 ≤ nominalRatio)
-    (hqNominal : q ≤ (8 / 5 : ℝ) * nominalRatio)
-    (hfeeValue :
-      feeValue = MIN_FEE_RATE * ((BONE : ℝ) * fullExponent * nominalRatio))
-    (hpower : exactPower ≤ exactUpper)
-    (hsum : |exactUpper - computedUpper| < accumulatedError n) :
-    exactPower - computedUpper < feeValue / 20 := by
-  have hcontinue := continued_loop_forces_sharp_first_term_scale
-    T ha0 ha1 hx (by norm_num) hrec hn3 hprevious htermError
-  have hbudget := accumulated_error_lt_thirty_second_min_fee_of_later_terms
-    hn3 hn46 (by simpa using hcontinue)
-  have hadverse : exactPower - computedUpper < accumulatedError n := by
-    have hupper : exactUpper - computedUpper < accumulatedError n :=
-      lt_of_le_of_lt (le_abs_self (exactUpper - computedUpper)) hsum
-    linarith
-  have hfee := exact_output_fee_value_dominates_first_term
-    (S := (BONE : ℝ)) (a := a) (fullExponent := fullExponent)
-    (q := q) (nominalRatio := nominalRatio)
-    (firstTerm := |T 1|) (feeValue := feeValue)
-    (by norm_num [BONE]) ha0 haFull hnominal0 hqNominal hfirst hfeeValue
-  linarith
-
-/--
-Instantiate the configured exact-output base and ratio geometry used by the
-later-iteration fractional fee comparison.
--/
-theorem baseline_configured_exact_output_later_adverse_error_lt_five_percent_min_fee
-    (T : ℕ → ℝ)
-    {n : ℕ} {a fullExponent nominalRatio computedBase previous : ℝ}
-    {exactPower exactUpper computedUpper feeValue : ℝ}
-    {computedBaseRaw : ℤ}
-    (ha0 : 0 ≤ a) (ha1 : a ≤ 1)
-    (haFull : a ≤ fullExponent)
-    (hratio0 : 0 ≤ nominalRatio)
-    (hratioUpper : nominalRatio ≤ (MAX_OUT_RATIO : ℝ) / STROOP)
-    (hbaseLower : 1 ≤ computedBase)
-    (hcomputedBase : computedBase = (computedBaseRaw : ℝ) / BONE)
-    (hbaseCeil :
-      IsCeil computedBaseRaw
-        ((BONE : ℝ) * (1 / (1 - nominalRatio))))
-    (hrec : ∀ k,
-      T (k + 1) =
-        T k * (a - (k : ℝ)) * (computedBase - 1) / ((k : ℝ) + 1))
-    (hn3 : 3 ≤ n) (hn46 : n ≤ 46)
-    (hprevious : (CPOW_PRECISION : ℝ) < |previous|)
-    (htermError :
-      |T (n - 1) - previous| < 3 * ((n - 1 : ℕ) : ℝ) - 2)
-    (hfirst : |T 1| = (BONE : ℝ) * a * (computedBase - 1))
-    (hfeeValue :
-      feeValue = MIN_FEE_RATE * ((BONE : ℝ) * fullExponent * nominalRatio))
-    (hpower : exactPower ≤ exactUpper)
-    (hsum : |exactUpper - computedUpper| < accumulatedError n) :
-    exactPower - computedUpper < feeValue / 20 := by
-  have hceilScaled := normalized_ceil_lt_exact_add_inv_scale
-    (exact := 1 / (1 - nominalRatio)) (by norm_num [BONE]) hbaseCeil
-  have hceil :
-      computedBase < 1 / (1 - nominalRatio) + 1 / (BONE : ℝ) := by
-    rw [hcomputedBase]
-    exact hceilScaled
-  have hxlt := configured_exact_output_computed_displacement_lt
-    hratioUpper hbaseLower hceil
-  have hx : |computedBase - 1| ≤ (51 : ℝ) / 100 := le_of_lt hxlt
-  have hcontinue := continued_loop_forces_sharp_first_term_scale
-    T ha0 ha1 hx (by norm_num) hrec hn3 hprevious htermError
-  have hfirstLarge := sharp_continuation_forces_first_term_above_precision
-    hn3 hn46 (by simpa using hcontinue)
-  have hratioLower := continued_exact_output_forces_nominal_ratio_lower
-    hratio0 hratioUpper hbaseLower hceil ha1 hfirst hfirstLarge
-  have hbounds := configured_exact_output_computed_bounds
-    hratioLower hratioUpper hbaseLower hceil
-  exact baseline_exact_output_later_adverse_error_lt_five_percent_min_fee
-    T ha0 ha1 (le_of_lt hbounds.1) hrec hn3 hn46 hprevious htermError
-      hfirst haFull hratio0 hbounds.2 hfeeValue hpower hsum
 
 /-- A positive exact first term is above every threshold exceeded by its floor. -/
 theorem positive_floor_above_threshold
@@ -589,36 +428,6 @@ theorem baseline_operating_band_later_adverse_error_lt_precise_fee_share
     have hupper : exactUpper - computedUpper < accumulatedError n :=
       lt_of_le_of_lt (le_abs_self (exactUpper - computedUpper)) hsum
     linarith
-  linarith
-
-/-- A retained second-iteration result has enough first-term fee margin at 5%. -/
-theorem baseline_retained_second_iteration_adverse_error_lt_five_percent_min_fee
-    {firstTerm exactPower exactDirectional computedDirectional feeValue : ℝ}
-    (hfirstLarge : (CPOW_PRECISION : ℝ) < firstTerm)
-    (hpower : exactPower ≤ exactDirectional)
-    (hsum :
-      |exactDirectional - computedDirectional| < accumulatedError 2)
-    (hfee : FIVE_PERCENT_MIN_FEE_RATE * firstTerm ≤ feeValue / 20) :
-    exactPower - computedDirectional < feeValue / 20 := by
-  have hadverse : exactPower - computedDirectional < accumulatedError 2 := by
-    have hrounded :
-        exactDirectional - computedDirectional < accumulatedError 2 :=
-      lt_of_le_of_lt (le_abs_self (exactDirectional - computedDirectional)) hsum
-    linarith
-  have hfive : accumulatedError 2 = 5 := by
-    norm_num [accumulatedError]
-  have hmargin : 5 < FIVE_PERCENT_MIN_FEE_RATE * firstTerm := by
-    rw [five_percent_minimum_fee_rate_value]
-    norm_num [CPOW_PRECISION] at hfirstLarge ⊢
-    linarith
-  linarith
-
-/-- A result already on the pool-favoring side has zero adverse error. -/
-theorem conservative_direction_has_no_adverse_error
-    {exact computed feeValue : ℝ}
-    (hconservative : computed ≤ exact) (hfeePositive : 0 < feeValue) :
-    computed - exact < feeValue / 20 := by
-  have herror : computed - exact ≤ 0 := sub_nonpos.mpr hconservative
   linarith
 
 /-- The single-sided weighted fee scale dominates the reciprocal exponent's fractional term. -/
@@ -772,27 +581,6 @@ theorem baseline_reciprocal_single_sided_later_adverse_error_lt_precise_fee_shar
   exact baseline_operating_band_later_adverse_error_lt_precise_fee_share
     T hfractional0 hfractional1 hx hrec hn3 hn46 hprevious htermError
       rfl hpower hsum hfee
-
-/-- Positive above-one composition scales both adverse error and its fee comparison equally. -/
-theorem above_one_upper_composition_preserves_scaled_adverse_bound
-    {wholeExact wholeComputed fracExact fracComputed composed feeValue : ℝ}
-    (hwhole0 : 0 < wholeExact)
-    (hfracComputed0 : 0 ≤ fracComputed)
-    (hwholeUpper : wholeExact ≤ wholeComputed)
-    (hcomposedUpper : wholeComputed * fracComputed ≤ composed)
-    (hfracError : fracExact - fracComputed < feeValue / 20) :
-    wholeExact * fracExact - composed < wholeExact * feeValue / 20 := by
-  have hproduct : wholeExact * fracComputed ≤ composed := by
-    calc
-      wholeExact * fracComputed ≤ wholeComputed * fracComputed :=
-        mul_le_mul_of_nonneg_right hwholeUpper hfracComputed0
-      _ ≤ composed := hcomposedUpper
-  have hreduce :
-      wholeExact * fracExact - composed ≤
-        wholeExact * (fracExact - fracComputed) := by
-    linarith
-  have hscaled := mul_lt_mul_of_pos_left hfracError hwhole0
-  linarith
 
 /-- Directed rounding in a proportional join cannot require less than the exact deposit. -/
 theorem proportional_join_rounding_is_pool_favoring
