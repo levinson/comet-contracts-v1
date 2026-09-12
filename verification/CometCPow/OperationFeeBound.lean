@@ -11,6 +11,13 @@ continuous-approximation layer as `BaselineFeeBound.lean`.
 /-- One thirty-second of the configured minimum swap-fee rate. -/
 noncomputable def THIRTY_SECOND_MIN_FEE_RATE : ℝ := MIN_FEE_RATE / 32
 
+/-- One percent of the configured minimum swap-fee rate. -/
+noncomputable def ONE_PERCENT_MIN_FEE_RATE : ℝ := MIN_FEE_RATE / 100
+
+/-- The generic exact-output second-iteration adverse fee share. -/
+noncomputable def EXACT_OUTPUT_SECOND_ITERATION_ADVERSE_FEE_SHARE : ℝ :=
+  2 / 125
+
 /-- A practical strict ceiling for ordinary three-fifths-band later error. -/
 noncomputable def THREE_FIFTHS_LATER_ADVERSE_FEE_SHARE : ℝ :=
   3961 / 100000
@@ -30,6 +37,14 @@ noncomputable def HALF_AUGMENTED_LATER_FEE_RATE : ℝ :=
 theorem thirty_second_minimum_fee_rate_value :
     THIRTY_SECOND_MIN_FEE_RATE = (1 : ℝ) / 32000000 := by
   norm_num [THIRTY_SECOND_MIN_FEE_RATE, MIN_FEE_RATE, MIN_FEE, STROOP]
+
+theorem one_percent_minimum_fee_rate_value :
+    ONE_PERCENT_MIN_FEE_RATE = (1 : ℝ) / 100000000 := by
+  norm_num [ONE_PERCENT_MIN_FEE_RATE, MIN_FEE_RATE, MIN_FEE, STROOP]
+
+theorem exact_output_second_iteration_adverse_fee_share_value :
+    EXACT_OUTPUT_SECOND_ITERATION_ADVERSE_FEE_SHARE = (2 : ℝ) / 125 := by
+  rfl
 
 theorem three_fifths_later_adverse_fee_share_value :
     THREE_FIFTHS_LATER_ADVERSE_FEE_SHARE = (3961 : ℝ) / 100000 := by
@@ -315,6 +330,41 @@ theorem exact_output_fee_value_dominates_first_term
       rw [hfee, minimum_fee_rate_value]
       ring
 
+/-- The exact-output fee covers a one-percent first-term rate at a 1.6% share. -/
+theorem exact_output_second_iteration_fee_value_dominates_first_term
+    {S a fullExponent q nominalRatio firstTerm feeValue : ℝ}
+    (hS0 : 0 ≤ S) (ha0 : 0 ≤ a)
+    (haFull : a ≤ fullExponent) (hnominal0 : 0 ≤ nominalRatio)
+    (hqNominal : q ≤ (8 / 5 : ℝ) * nominalRatio)
+    (hfirst : firstTerm = S * a * q)
+    (hfee : feeValue = MIN_FEE_RATE * (S * fullExponent * nominalRatio)) :
+    ONE_PERCENT_MIN_FEE_RATE * firstTerm ≤
+      EXACT_OUTPUT_SECOND_ITERATION_ADVERSE_FEE_SHARE * feeValue := by
+  have hSa0 : 0 ≤ S * a := mul_nonneg hS0 ha0
+  have hdisplacement :
+      S * a * q ≤ S * a * ((8 / 5 : ℝ) * nominalRatio) :=
+    mul_le_mul_of_nonneg_left hqNominal hSa0
+  have hscale0 : 0 ≤ S * nominalRatio := mul_nonneg hS0 hnominal0
+  have hexponent : S * a * nominalRatio ≤ S * fullExponent * nominalRatio := by
+    simpa [mul_assoc, mul_left_comm, mul_comm] using
+      mul_le_mul_of_nonneg_left haFull hscale0
+  calc
+    ONE_PERCENT_MIN_FEE_RATE * firstTerm =
+        (1 / 100000000 : ℝ) * (S * a * q) := by
+      rw [hfirst, one_percent_minimum_fee_rate_value]
+    _ ≤ (1 / 100000000 : ℝ) *
+        (S * a * ((8 / 5 : ℝ) * nominalRatio)) :=
+      mul_le_mul_of_nonneg_left hdisplacement (by norm_num)
+    _ = (2 / 125 : ℝ) *
+        ((1 / 1000000 : ℝ) * (S * a * nominalRatio)) := by ring
+    _ ≤ (2 / 125 : ℝ) *
+        ((1 / 1000000 : ℝ) * (S * fullExponent * nominalRatio)) := by
+      exact mul_le_mul_of_nonneg_left
+        (mul_le_mul_of_nonneg_left hexponent (by norm_num)) (by norm_num)
+    _ = EXACT_OUTPUT_SECOND_ITERATION_ADVERSE_FEE_SHARE * feeValue := by
+      rw [hfee, minimum_fee_rate_value,
+        exact_output_second_iteration_adverse_fee_share_value]
+
 /--
 Fractional above-one paths that continue for at least three iterations have
 adverse continuous approximation error below 5% of the spot-normalized
@@ -417,10 +467,10 @@ theorem positive_floor_above_threshold
 
 /--
 At iteration two the above-one upper adjustment removes the negative second
-term. Only the first term's sub-unit floor error remains, which is below 5% of
-the corresponding minimum-fee value.
+term. Only the first term's sub-unit floor error remains, which is below 1.6%
+of the corresponding minimum-fee value.
 -/
-theorem baseline_exact_output_second_iteration_adverse_error_lt_five_percent_min_fee
+theorem baseline_exact_output_second_iteration_adverse_error_lt_precise_fee_share
     {a fullExponent q nominalRatio firstTerm exactPower exactUpper computedUpper feeValue : ℝ}
     {firstRounded : ℤ}
     (ha0 : 0 ≤ a) (haFull : a ≤ fullExponent)
@@ -434,20 +484,21 @@ theorem baseline_exact_output_second_iteration_adverse_error_lt_five_percent_min
     (hpower : exactPower ≤ exactUpper)
     (hfeeValue :
       feeValue = MIN_FEE_RATE * ((BONE : ℝ) * fullExponent * nominalRatio)) :
-    exactPower - computedUpper < feeValue / 20 := by
+    exactPower - computedUpper <
+      EXACT_OUTPUT_SECOND_ITERATION_ADVERSE_FEE_SHARE * feeValue := by
   have hfirstLarge : (CPOW_PRECISION : ℝ) < firstTerm :=
     positive_floor_above_threshold hfirstFloor hcontinued
   have hrounding : exactUpper - computedUpper < 1 := by
     rw [hexactUpper, hcomputedUpper]
     linarith [hfirstFloor.lt_add_one]
   have hadverse : exactPower - computedUpper < 1 := by linarith
-  have hfee := exact_output_fee_value_dominates_first_term
+  have hfee := exact_output_second_iteration_fee_value_dominates_first_term
     (S := (BONE : ℝ)) (a := a) (fullExponent := fullExponent)
     (q := q) (nominalRatio := nominalRatio)
     (firstTerm := firstTerm) (feeValue := feeValue)
     (by norm_num [BONE]) ha0 haFull hnominal0 hqNominal hfirst hfeeValue
-  have hone : 1 < THIRTY_SECOND_MIN_FEE_RATE * firstTerm := by
-    rw [thirty_second_minimum_fee_rate_value]
+  have hone : 1 < ONE_PERCENT_MIN_FEE_RATE * firstTerm := by
+    rw [one_percent_minimum_fee_rate_value]
     norm_num [CPOW_PRECISION] at hfirstLarge ⊢
     linarith
   linarith
@@ -456,7 +507,7 @@ theorem baseline_exact_output_second_iteration_adverse_error_lt_five_percent_min
 Instantiate the configured exact-output base and ratio geometry used by the
 second-iteration fractional fee comparison.
 -/
-theorem baseline_configured_exact_output_second_iteration_adverse_error_lt_five_percent_min_fee
+theorem baseline_configured_exact_output_second_iteration_adverse_error_lt_precise_fee_share
     {a fullExponent nominalRatio computedBase firstTerm : ℝ}
     {exactPower exactUpper computedUpper feeValue : ℝ}
     {computedBaseRaw firstRounded : ℤ}
@@ -476,7 +527,8 @@ theorem baseline_configured_exact_output_second_iteration_adverse_error_lt_five_
     (hpower : exactPower ≤ exactUpper)
     (hfeeValue :
       feeValue = MIN_FEE_RATE * ((BONE : ℝ) * fullExponent * nominalRatio)) :
-    exactPower - computedUpper < feeValue / 20 := by
+    exactPower - computedUpper <
+      EXACT_OUTPUT_SECOND_ITERATION_ADVERSE_FEE_SHARE * feeValue := by
   have hceilScaled := normalized_ceil_lt_exact_add_inv_scale
     (exact := 1 / (1 - nominalRatio)) (by norm_num [BONE]) hbaseCeil
   have hceil :
@@ -489,7 +541,7 @@ theorem baseline_configured_exact_output_second_iteration_adverse_error_lt_five_
     hratio0 hratioUpper hbaseLower hceil ha1 hfirst hfirstLarge
   have hbounds := configured_exact_output_computed_bounds
     hratioLower hratioUpper hbaseLower hceil
-  exact baseline_exact_output_second_iteration_adverse_error_lt_five_percent_min_fee
+  exact baseline_exact_output_second_iteration_adverse_error_lt_precise_fee_share
     ha0 haFull hratio0 hbounds.2 hfirst hfirstFloor hcontinued
       hexactUpper hcomputedUpper hpower hfeeValue
 
