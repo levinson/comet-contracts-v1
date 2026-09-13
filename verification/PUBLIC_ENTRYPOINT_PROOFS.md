@@ -59,6 +59,14 @@ The checked i128 and signed-I256 refinements are imported from the pinned `sorob
 
 Of the 19 pool-specific public entrypoints, 11 have source-shaped configuration or arithmetic proofs and 8 administrative or simple storage entrypoints remain unproved. All 10 SEP-41 methods are intentionally out of scope. No current theorem claims fully extracted Rust correspondence or end-to-end contract-state, authorization, external-call, transfer, mint/burn, TTL, or event correctness.
 
+## Security interpretation
+
+For the six modeled `c_pow` operations, the machine-checked results rule out the analyzed numerical exploit class on every successful source-shaped path satisfying the stated configuration and domain assumptions: fixed-point rounding and finite-series approximation cannot consume the minimum configured fee advantage and give the caller a result better than the corresponding continuous fee-free ideal. The proportional join and exit results separately prove that their rounding cannot undercharge or overpay the caller, respectively. These conclusions provide strong assurance about the pool's arithmetic core, but they are not a proof that the deployed contract as a whole is secure or solvent.
+
+The verification does not establish cross-call balance conservation, persistent-state invariant preservation, or whole-pool solvency because actual token transfers, LP-token minting and burning, and storage transitions are not modeled end to end. It also does not cover controller or freeze authorization, reentrancy or callback behavior, hostile external-token behavior, all failure and panic paths, resource-exhaustion or execution-cost bounds, compiler or Soroban runtime correctness, or broader economic attacks. The handwritten correspondence between the Rust implementation and Lean models remains a reviewed trust assumption. Consequently, these proofs complement rather than replace a contract audit, integration testing, and deployment-specific operational review.
+
+The Lean project builds without `sorry`, `admit`, or project-defined axioms. Its compiled theorem dependency audit uses only Lean's standard `propext`, `Classical.choice`, and `Quot.sound` foundations.
+
 ## Appendix: Terminology
 
 ### Error direction
