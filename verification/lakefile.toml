@@ -1,9 +1,9 @@
-name = "cometCpowVerification"
+name = "cometPoolVerification"
 version = "0.1.0"
-defaultTargets = ["CometCPow"]
+defaultTargets = ["CometPool"]
 
 [[lean_lib]]
-name = "CometCPow"
+name = "CometPool"
 
 [[require]]
 name = "mathlib"

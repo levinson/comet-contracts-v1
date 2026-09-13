@@ -1,6 +1,6 @@
-# Machine-checked c_pow lemmas
+# Comet pool formal verification
 
-This Lean project machine-checks the baseline `c_pow` recurrence-error budget, geometric-tail simplification, operating-band convergence, exact-input and exact-output swap composition, successful source-shaped execution bridges for initialization, both swap directions, all four single-sided liquidity directions, and both proportional liquidity directions, spot-price getter error and monotonicity bounds, configured limits, and application-specific signed-`I256` magnitude and denominator bounds.
+This Lean project machine-checks the baseline `c_pow` recurrence-error budget, generalized-binomial tail bounds, operating-band convergence, exact-input and exact-output swap composition, successful source-shaped execution bridges for initialization, both swap directions, all four single-sided liquidity directions, and both proportional liquidity directions, spot-price getter error and monotonicity bounds, configured limits, and application-specific signed-`I256` magnitude and denominator bounds.
 
 The checked-in Lean constants are generated from the production Rust constants,
 so the proof cannot silently keep using old pool ratios, fees, weights,
@@ -8,15 +8,15 @@ precision, exponent, or iteration limits. From the repository root, check that
 the generated module is current with:
 
 ```sh
-rustc --edition=2021 verification/generate_constants.rs -o /tmp/generate-cpow-constants
-/tmp/generate-cpow-constants --check verification/CometCPow/GeneratedConstants.lean
+rustc --edition=2021 verification/generate_constants.rs -o /tmp/generate-comet-pool-constants
+/tmp/generate-comet-pool-constants --check verification/CometPool/Config/GeneratedConstants.lean
 ```
 
 To regenerate it after changing a source constant, replace the `--check` line
 with:
 
 ```sh
-/tmp/generate-cpow-constants > verification/CometCPow/GeneratedConstants.lean
+/tmp/generate-comet-pool-constants > verification/CometPool/Config/GeneratedConstants.lean
 ```
 
 Then run the proofs with:
@@ -31,10 +31,10 @@ Elan caches the pinned Lean compiler outside the repository. To populate that pe
 The checked-in `lake-manifest.json` pins the complete dependency graph, so routine local builds should not run a bare `lake update`; that command refreshes every Git dependency and can fetch substantial Mathlib history. After intentionally changing one dependency pin in `lakefile.toml`, run `lake update <package-name>` once, commit the resulting manifest, and return to `lake build` for normal development.
 
 The project pins Lean and mathlib to version 4.19.0. The
-`c_pow formal verification` workflow first rejects a stale generated constants
+`Comet pool formal verification` workflow first rejects a stale generated constants
 module, then runs the build for every relevant pull-request change and rejects
 proof sources containing `sorry`, `admit`, or custom `axiom` declarations. It
-also audits the compiled `CometCPow` namespace transitively, allowing only
+also audits the compiled `CometPool` namespace transitively, allowing only
 Lean's standard `propext`, `Classical.choice`, and `Quot.sound` foundations.
 
 The verification project is development-only. It is not a dependency of any
