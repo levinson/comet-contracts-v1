@@ -34,8 +34,12 @@ The project pins Lean and mathlib to version 4.19.0. The
 `Comet pool formal verification` workflow first rejects a stale generated constants
 module, then runs the build for every relevant pull-request change and rejects
 proof sources containing `sorry`, `admit`, or custom `axiom` declarations. It
-also audits the compiled `CometPool` namespace transitively, allowing only
-Lean's standard `propext`, `Classical.choice`, and `Quot.sound` foundations.
+also audits the compiled `CometPool` namespace transitively. The namespace-wide
+audit allows Lean's standard `propext`, `Classical.choice`, and `Quot.sound`
+foundations plus the unsafe compiler-only `lcProof` placeholder found in
+generated `_cstage1` implementation declarations. Lean does not permit
+`lcProof` in kernel-checked theorem definitions, so the theorem trust base
+remains limited to the standard three foundations.
 
 The verification project is development-only. It is not a dependency of any
 Rust crate and does not alter the contract's instructions, memory use, or WASM

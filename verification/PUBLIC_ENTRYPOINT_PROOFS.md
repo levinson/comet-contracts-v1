@@ -48,7 +48,7 @@ For the six modeled `c_pow` operations, the machine-checked results rule out the
 
 The verification does not establish cross-call balance conservation, persistent-state invariant preservation, or whole-pool solvency because actual token transfers, LP-token minting and burning, and storage transitions are not modeled end to end. It also does not cover controller or freeze authorization, reentrancy or callback behavior, hostile external-token behavior, all failure and panic paths, resource-exhaustion or execution-cost bounds, compiler or Soroban runtime correctness, or broader economic attacks. The handwritten correspondence between the Rust implementation and Lean models remains a reviewed trust assumption. Consequently, these proofs complement rather than replace a contract audit, integration testing, and deployment-specific operational review.
 
-The Lean project builds without `sorry`, `admit`, or project-defined axioms. Its compiled theorem dependency audit uses only Lean's standard `propext`, `Classical.choice`, and `Quot.sound` foundations.
+The Lean project builds without `sorry`, `admit`, or project-defined axioms. The namespace-wide compiled-declaration audit allows Lean's standard `propext`, `Classical.choice`, and `Quot.sound` foundations plus the unsafe compiler-only `lcProof` placeholder used by generated `_cstage1` implementation declarations. Lean does not permit `lcProof` in kernel-checked theorem definitions, so the theorem trust base remains limited to the standard three foundations.
 
 ## Coverage inventory
 
@@ -143,4 +143,4 @@ The checked i128 and signed-I256 refinements are imported from the pinned `sorob
 
 **Source-shaped model.** A handwritten Lean function that mirrors the production Rust operation order, checked-arithmetic failures, and branch structure closely enough to compose the arithmetic lemmas at the public-entrypoint boundary. It is not automatically extracted from Rust, so the correspondence assumptions listed in this document remain part of the trusted boundary.
 
-**Machine-checked.** Accepted by the pinned Lean toolchain and declared dependencies without `sorry`, `admit`, or project-defined axioms. This establishes the stated theorem about the Lean model; it does not by itself establish authorization, storage, token-transfer, event, TTL, compiler, runtime, or Rust-to-Lean translation correctness.
+**Machine-checked.** Accepted by the pinned Lean toolchain and declared dependencies without `sorry`, `admit`, or project-defined axioms. The CI namespace audit permits the compiler-only `lcProof` placeholder in generated executable declarations, but Lean excludes that unsafe constant from kernel-checked theorem definitions. This establishes the stated theorem about the Lean model; it does not by itself establish authorization, storage, token-transfer, event, TTL, compiler, runtime, or Rust-to-Lean translation correctness.

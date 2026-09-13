@@ -55,4 +55,6 @@ jobs:
           use-mathlib-cache: true
           axiom-audit: true
           axiom-audit-root: CometPool
-          axiom-audit-allow: propext,Classical.choice,Quot.sound
+          # `lcProof` is an unsafe compiler-only placeholder used in generated
+          # `_cstage1` declarations; Lean cannot use it in kernel-checked theorems.
+          axiom-audit-allow: propext,Classical.choice,Quot.sound,lcProof
