@@ -93,14 +93,4 @@ theorem UpperCPowiTrace.upper_bound
         ring
       rwa [heq]
 
-/-- A normalized raw ceiling supplies either square or accumulator step inequality. -/
-theorem normalized_mul_ceil_upper
-    {rounded : ℤ} {left right normalized scale : ℝ}
-    (hscale : 0 < scale)
-    (hnormalized : normalized = (rounded : ℝ) / scale)
-    (hceil : IsCeil rounded (scale * (left * right))) :
-    left * right ≤ normalized := by
-  rw [hnormalized]
-  exact hceil.le_normalized hscale
-
 end CometCPow

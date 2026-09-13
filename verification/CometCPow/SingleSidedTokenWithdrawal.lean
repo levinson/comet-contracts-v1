@@ -58,12 +58,6 @@ theorem single_sided_token_withdrawal_adverse_fee_share_value :
   rw [SINGLE_SIDED_TOKEN_WITHDRAWAL_ADVERSE_FEE_SHARE,
     half_augmented_later_adverse_fee_share_value]
 
-theorem single_sided_token_withdrawal_later_fee_rate_value :
-    SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE =
-      (47501 : ℝ) / 1000000000000 := by
-  rw [SINGLE_SIDED_TOKEN_WITHDRAWAL_LATER_FEE_RATE,
-    half_augmented_later_fee_rate_value]
-
 /--
 For a fractional exponent, reducing a base in `[0,1]` by `q - r` reduces its
 power by at least `weight * (q - r)`. This is the favorable-rounding margin

@@ -111,14 +111,6 @@ theorem configured_exact_input_base_displacement_lt_one_fourth
   rw [abs_of_nonpos (sub_nonpos.mpr hbaseUpper)]
   linarith
 
-/-- The baseline one-term `+1` correction is conservative on this path. -/
-theorem first_term_upper_has_no_adverse_error
-    {exactPower exactPartial computedPartial : ℝ}
-    (hpower : exactPower ≤ exactPartial)
-    (hfloor : exactPartial < computedPartial + 1) :
-    exactPower ≤ computedPartial + 1 :=
-  le_trans hpower (le_of_lt hfloor)
-
 /--
 The computed exact-input base displacement cannot exceed the nominal input to
 balance ratio. This connects the first binomial term to the input amount on

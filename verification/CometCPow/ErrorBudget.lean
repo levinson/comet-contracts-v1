@@ -133,17 +133,4 @@ theorem recurrence_implies_partial_sum_error_budget_until
   exact partial_sum_error_lt_sum_error_budget exactTerm computedTerm hN1
     (fun k hk1 hkN ↦ hterm k hk1 hkN)
 
-/-- In the common `0 ≤ q ≤ 1/2` case, the geometric-tail factor is in `[0, 1]`. -/
-theorem geometric_factor_bounds {q : ℝ} (hq0 : 0 ≤ q) (hq : q ≤ 1 / 2) :
-    0 ≤ q / (1 - q) ∧ q / (1 - q) ≤ 1 := by
-  have hdenom : 0 < 1 - q := by linarith
-  constructor
-  · positivity
-  · exact (div_le_one hdenom).2 (by linarith)
-
-theorem geometric_tail_le_current {term q : ℝ}
-    (hterm : 0 ≤ term) (hq0 : 0 ≤ q) (hq : q ≤ 1 / 2) :
-    term * (q / (1 - q)) ≤ term := by
-  exact mul_le_of_le_one_right hterm (geometric_factor_bounds hq0 hq).2
-
 end CometCPow
