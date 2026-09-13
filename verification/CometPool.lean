@@ -30,3 +30,5 @@ import CometPool.Source.ProportionalLiquiditySource
 import CometPool.Source.InitializationSource
 import CometPool.Operations.SpotPrice
 import CometPool.Source.SpotPriceSource
+import CometPool.Operations.FeeDominance
+import CometPool.Source.FeeDominanceSource
