@@ -6,15 +6,20 @@ use soroban_sdk::{
 };
 
 use crate::c_consts::STROOP;
+#[cfg(feature = "certora-pool-collections-ghost")]
+use crate::c_pool::metadata::{
+    certora_read_pool_records as read_record, certora_read_pool_tokens as read_tokens,
+    certora_write_pool_records as write_record,
+};
+#[cfg(not(feature = "certora-pool-collections-ghost"))]
+use crate::c_pool::metadata::{read_record, read_tokens, write_record};
 use crate::{
     c_consts::{MAX_IN_RATIO, MAX_OUT_RATIO},
     c_math,
     c_pool::{
         error::Error,
         event::{DepositEvent, ExitEvent, JoinEvent, SwapEvent, WithdrawEvent},
-        metadata::{
-            get_total_shares, read_freeze, read_record, read_swap_fee, read_tokens, write_record,
-        },
+        metadata::{get_total_shares, read_freeze, read_swap_fee},
         token_utility::{burn_shares, mint_shares, pull_shares, pull_underlying, push_underlying},
     },
 };

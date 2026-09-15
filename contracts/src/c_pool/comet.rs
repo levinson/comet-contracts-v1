@@ -1,4 +1,8 @@
 //! Liquidity Pool and Token Implementation
+#[cfg(feature = "certora-pool-collections-ghost")]
+use crate::c_pool::metadata::certora_read_pool_records as read_record;
+#[cfg(not(feature = "certora-pool-collections-ghost"))]
+use crate::c_pool::metadata::read_record;
 use crate::c_pool::{
     allowance::{read_allowance, spend_allowance, write_allowance},
     balance::{read_balance, receive_balance, spend_balance},
@@ -13,8 +17,8 @@ use crate::c_pool::{
         },
     },
     metadata::{
-        get_total_shares, read_controller, read_decimal, read_name, read_record, read_swap_fee,
-        read_symbol, read_tokens,
+        get_total_shares, read_controller, read_decimal, read_name, read_swap_fee, read_symbol,
+        read_tokens,
     },
     storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
     token_utility::check_nonnegative_amount,

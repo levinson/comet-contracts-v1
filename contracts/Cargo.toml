@@ -28,6 +28,9 @@ certora-lp-balance-ghost = ["certora", "dep:cvlr-nondet"]
 # Conditional Phase 1 foundation: replace the mutable scalar pool accessors
 # needed by initialization and operation guards with verifier ghost state.
 certora-pool-scalar-ghost = ["certora"]
+# Conditional Phase 1 foundation: retain the complete token vector and record
+# map in verifier ghost state while preserving the production accessor shapes.
+certora-pool-collections-ghost = ["certora"]
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }

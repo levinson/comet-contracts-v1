@@ -4,7 +4,10 @@ use soroban_sdk::{
 use soroban_token_sdk::metadata::TokenMetadata;
 
 use crate::{
-    c_consts::{INIT_POOL_SUPPLY, MAX_FEE, MAX_WEIGHT, MIN_BALANCE, MIN_FEE, MIN_WEIGHT, STROOP},
+    c_consts::{
+        INIT_POOL_SUPPLY, MAX_BOUND_TOKENS, MAX_FEE, MAX_WEIGHT, MIN_BALANCE, MIN_BOUND_TOKENS,
+        MIN_FEE, MIN_WEIGHT, STROOP,
+    },
     c_pool::{
         error::Error,
         metadata::{
@@ -27,8 +30,8 @@ pub fn execute_init(
     assert_with_error!(&e, !has_controller(&e), Error::AlreadyInitialized);
 
     // valiate and store the records of the tokens
-    assert_with_error!(&e, tokens.len() >= 2, Error::ErrMinTokens);
-    assert_with_error!(&e, tokens.len() <= 8, Error::ErrMaxTokens);
+    assert_with_error!(&e, tokens.len() >= MIN_BOUND_TOKENS, Error::ErrMinTokens);
+    assert_with_error!(&e, tokens.len() <= MAX_BOUND_TOKENS, Error::ErrMaxTokens);
     assert_with_error!(
         &e,
         weights.len() == tokens.len() && tokens.len() == balances.len(),

@@ -1,6 +1,6 @@
 # Comet Sunbeam verification
 
-This directory contains verification-only Certora Sunbeam configuration. Normal contract builds do not enable the `certora` feature and therefore exclude the rules and CVLR dependencies from deployed WASM. Conditional features provide an injective short-symbol `DataKey` encoding, a one-account LP-balance ghost, and a scalar pool-state ghost. None are deployment features.
+This directory contains verification-only Certora Sunbeam configuration. Normal contract builds do not enable the `certora` feature and therefore exclude the rules and CVLR dependencies from deployed WASM. Conditional features provide an injective short-symbol `DataKey` encoding, a one-account LP-balance ghost, a scalar pool-state ghost, and an explicit bounded-slot model of the pool token vector and record map. None are deployment features.
 
 ## Pinned compatibility set
 
@@ -71,6 +71,12 @@ Build the Phase 1 scalar/LP foundation artifact:
 python3 certora_build.py --json --log --cargo_features certora-pool-scalar-ghost,certora-lp-balance-ghost
 ```
 
+Build the Phase 1 collection/scalar/LP foundation artifact:
+
+```sh
+python3 certora_build.py --json --log --cargo_features certora-pool-collections-ghost,certora-pool-scalar-ghost,certora-lp-balance-ghost
+```
+
 Run the verification configurations through the wrapper, which selects the local tool cache when present and resolves each `build_script` path consistently:
 
 ```sh
@@ -81,6 +87,7 @@ Run the verification configurations through the wrapper, which selects the local
 ./run_certora.sh phase0_negative_control.conf --wait_for_results
 ./run_certora.sh phase0_failure_probe.conf --wait_for_results
 ./run_certora.sh phase1_scalar_state_smoke.conf --wait_for_results
+./run_certora.sh phase1_collection_state_smoke.conf --wait_for_results
 ```
 
 A soundly compatible production-key toolchain should verify that two consecutive `get_total_supply` calls are equal, find a reachable nonzero supply, round-trip a written supply, report the intentionally false negative control as `Violated`, and verify that an authorized zero-share join cannot return normally. The conditional symbol-key configuration should verify that all ten abstracted `DataKey` symbols are pairwise distinct. The storage-write probe is currently expected to be `Violated`, while every rule in the LP-balance ghost configuration is expected to verify. Certora does not permit `assert` and `satisfy` commands in the same rule, so reachability witnesses are separate satisfy-only rules. Any `Timeout` or `Unknown` is incomplete.
@@ -105,6 +112,16 @@ The [Phase 1A report](https://prover.certora.com/output/6280446/98f7271948624d41
 
 This is not yet a proof of the public `init` entrypoint. Token vectors, record maps, LP metadata, token decimals and transfers, authorization, and the complete initialization postcondition still require independently validated models and rules.
 
+## Phase 1B bounded collection foundation
+
+The `certora-pool-collections-ghost` feature conditionally routes pool-operation token-vector and record-map access through a value-level WASM ghost with eight explicit slots, matching the contract's configured maximum token count. Production initialization consumes the shared `MIN_BOUND_TOKENS` and `MAX_BOUND_TOKENS` constants, and a verification-build compile-time assertion rejects any maximum that differs from the explicit ghost capacity. The adapter retains initialization state, length, insertion order, address-keyed lookup, record replacement, and every `Record` field. It uses named scalar slots rather than Soroban object handles, Rust arrays, symbolic indexing, or verifier loops.
+
+That representation follows the pattern used by existing Soroban verification work: Certora's [reflector example](https://github.com/Certora/reflector-subscription-contract/blob/51944577dc4536e9cf9711db6e125fe1e2254054/src/certora_specs/mod.rs) uses raw one-key ghost storage, its [token summary](https://github.com/Certora/reflector-subscription-contract/blob/51944577dc4536e9cf9711db6e125fe1e2254054/src/certora_specs/token.rs) replaces external token behavior in verification builds, the pinned adapter provides a [`mock_client` macro](https://github.com/Certora/cvlr-soroban/blob/faf7fb826f395cc0573a0ce674b7e4099cdf6f57/cvlr-soroban-derive/src/mock_client.rs), and prior Blend verification submissions conditionally route production storage access through [raw ghost maps](https://github.com/code-423n4/2025-02-blend-fv/blob/fc843bcc188cd796212c6ad7d9a148cad490da04/Example_Submissions/backstop-jraynaldi3/src/certora_specs/summaries/storage.rs). Comet's model expands the raw-state approach into a fully explicit bounded collection so it does not depend on the verifier preserving symbolic Soroban `Vec` or `Map` handles. Mature EVM suites use the same broader discipline: Aave [maintains aggregate ghost state with storage hooks and proves its consistency invariant](https://github.com/aave/aave-v3-core/blob/master/certora/specs/AToken.spec), while Morpho Midnight [bounds loops, verifies one entry point at a time, and justifies difficult summaries with separate proofs](https://github.com/morpho-org/midnight/blob/main/certora/README.md).
+
+Two rejected diagnostics make that choice testable rather than stylistic. Storing `Option<Vec<Address>>` and `Option<Map<Address, Record>>` directly failed to preserve symbolic contents in the [object-handle diagnostic](https://prover.certora.com/output/6280446/84421322063d4652a8001374b990bcc3). Raw Rust arrays and loops then failed scalarization and loop unwinding in the [array diagnostic](https://prover.certora.com/output/6280446/2117c4469ee14a048dd328f9c5f8156f). The explicit-slot model verifies arbitrary two-token round trips, equal-address aliasing, absence of a distinct unbound key, token/record and scalar/LP isolation, record-index alignment, every record-replacement branch, and successful-state reachability. Separate satisfy-only rules establish that the equal/distinct aliasing condition, eight pairwise-distinct addresses, and the full-capacity slot-seven replacement are reachable. The [maximum-capacity report](https://prover.certora.com/output/6280446/ad2492662c234ae199ace775c7d8bbdb) exercises all eight token and record slots; the [aliasing report](https://prover.certora.com/output/6280446/612e830454984d058072af65d7d46373) and [supplemental round-trip/reachability report](https://prover.certora.com/output/6280446/a0fb382b557c496982c76786a0ec4e53) close the additional key-identity and non-vacuity checks; the [replacement-branch report](https://prover.certora.com/output/6280446/b2079e8161974852bd8dd6431ac14156) verifies all eight constant-index replacement rules; and the strengthened [full-capacity witness](https://prover.certora.com/output/6280446/3e6b9073bb324ebe8ae8fa4a123c71e2) verifies that both eight-slot collections, every populated getter, and the slot-seven replacement return normally.
+
+`CertoraPoolRecordMap::set` updates the ghost immediately and its write adapter is a no-op. This has the same final state as the production read-modify-write pattern on successful operations, which is the current proof scope. It does not model a discarded local map or post-abort rollback. The model also does not validate production collection serialization or host storage, and `init` is not yet routed through it. A complete Phase 1 result still requires LP metadata, token clients, authorization, and a source-shaped initialization rule.
+
 ## Failure-atomicity boundary
 
 The SDK-25 CVLR adapter exposes rules as direct Rust calls but provides no catch/`try_` mechanism that resumes a rule after a Soroban abort. `phase0_rejected_join_cannot_return` can check that a zero-share join has no normal return under the verifier's abort semantics, but it cannot compare post-abort `EconomicState`. A passing result is not a proof that rollback occurred. Failure atomicity therefore remains outside the claimed Sunbeam scope until an adapter or host-level harness can expose both the failed result and rolled-back state without pruning the failure path.
@@ -120,7 +137,8 @@ The SDK-25 CVLR adapter exposes rules as direct Rust calls but provides no catch
 | Conditional host-storage write semantics | Blocked | The [write probe](https://prover.certora.com/output/6280446/7b120b042b4d43f4a362d47c85120a4a) violates both the metadata-accessor and raw short-symbol round trips |
 | Conditional one-account LP balance | Passed in cloud, conditional | All nine aliasing, isolation, reachability, helper-composition, and unconstrained-fallback rules verify in the [ghost report](https://prover.certora.com/output/6280446/1b0f2502f97d411abcf048e87204b84e) |
 | Phase 1 scalar-state foundation | Passed in cloud, conditional | The [Phase 1A report](https://prover.certora.com/output/6280446/98f7271948624d41a25a5ce45209ddfd) verifies five scalar/LP assertion rules and one successful-path witness |
-| Full Phase 1 initialization proof | In progress | Token vectors, records, LP metadata, token calls, authorization, and the public-entrypoint composition remain open |
+| Phase 1 bounded collection foundation | Passed in cloud, conditional | The Phase 1B reports cover capacity/configuration coupling, arbitrary values, aliasing, missing keys, all eight insertion and replacement slots, isolation, alignment, and non-vacuous witnesses without symbolic Soroban collection handles |
+| Full Phase 1 initialization proof | In progress | Initialization routing, LP metadata, token calls, authorization, and the public-entrypoint composition remain open |
 | Negative-control counterexample | Passed in cloud | The [negative control](https://prover.certora.com/output/6280446/65a471d803564fa89226a2cb4797b108) is `Violated` as expected |
 | Rejected-call probe | Passed in cloud | The [rejected-call report](https://prover.certora.com/output/6280446/699a45726f7542a4be1a85ebf6ccabc2) verifies no normal return and finds the authorized pre-state witness; this does not prove rollback |
 | Failure atomicity | Deferred | The pinned adapter cannot inspect state after an abort |
