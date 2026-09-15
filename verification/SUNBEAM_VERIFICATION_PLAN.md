@@ -102,6 +102,8 @@ The `certora-lp-balance-ghost` build conditionally replaces the LP balance acces
 
 ### Phase 1: initialized-state foundation
 
+Phase 1A establishes a conditional scalar-state foundation for controller presence/value, swap fee, total shares, and freeze status. The scalar accessors reproduce production defaults, round-trip arbitrary values, preserve field separation, remain independent of the one-account LP ghost, and compose with the actual `mint_shares` helper. A satisfy-only rule witnesses the complete successful scalar/LP path. These results verify in the [Phase 1A report](https://prover.certora.com/output/6280446/98f7271948624d41a25a5ce45209ddfd). The full `init` proof remains open pending validated token-vector, record-map, LP-metadata, token-call, and authorization models.
+
 Prove that a successful `init` establishes the state used by later rules:
 
 - Initialization is single-use and requires controller authorization.

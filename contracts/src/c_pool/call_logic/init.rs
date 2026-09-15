@@ -7,8 +7,11 @@ use crate::{
     c_consts::{INIT_POOL_SUPPLY, MAX_FEE, MAX_WEIGHT, MIN_BALANCE, MIN_FEE, MIN_WEIGHT, STROOP},
     c_pool::{
         error::Error,
-        metadata::{write_controller, write_metadata, write_record, write_swap_fee, write_tokens},
-        storage_types::{DataKey, Record},
+        metadata::{
+            has_controller, write_controller, write_metadata, write_record, write_swap_fee,
+            write_tokens,
+        },
+        storage_types::Record,
         token_utility::mint_shares,
     },
 };
@@ -21,11 +24,7 @@ pub fn execute_init(
     balances: Vec<i128>,
     swap_fee: i128,
 ) {
-    assert_with_error!(
-        &e,
-        !e.storage().instance().has(&DataKey::Controller),
-        Error::AlreadyInitialized
-    );
+    assert_with_error!(&e, !has_controller(&e), Error::AlreadyInitialized);
 
     // valiate and store the records of the tokens
     assert_with_error!(&e, tokens.len() >= 2, Error::ErrMinTokens);
