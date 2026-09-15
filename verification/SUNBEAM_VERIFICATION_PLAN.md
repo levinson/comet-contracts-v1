@@ -26,7 +26,7 @@ Sunbeam should directly prove an arithmetic property when tractable. If nonlinea
 - Swaps: `swap_exact_amount_in` and `swap_exact_amount_out`.
 - Controller and freeze transitions needed to establish operation availability.
 - Minimal invariant-preservation coverage for SEP-41 `transfer`, `transfer_from`, `burn`, and `burn_from`, without expanding into full SEP-41 functional verification.
-- Pool storage, LP-share supply, selected-user share balances, underlying-token balance effects, return values, and failure atomicity.
+- Pool storage, LP-share supply, selected-user share balances, underlying-token balance effects, and return values on successful calls.
 
 ### Deferred or excluded scope
 
@@ -36,6 +36,7 @@ Sunbeam should directly prove an arithmetic property when tractable. If nonlinea
 - Economic properties involving oracle values, front-running, price discovery, or profitability across multiple pools are excluded.
 - Event contents and TTL-extension behavior are excluded from the initial economic-state proofs and may be verified separately.
 - Resource bounds are tracked operationally but are not initially treated as functional correctness theorems.
+- Failure atomicity is deferred. The pinned SDK-25 CVLR adapter provides no sound continuation after a Soroban abort, so it cannot compare pre- and post-abort `EconomicState`. A rule that merely proves the call cannot return normally is not a rollback proof.
 
 ## Proposed project structure
 
@@ -95,6 +96,8 @@ Every report must identify which mode produced each result. A mutation inside a 
 5. Record local setup, cloud credentials, exact commands, expected report statuses, and common timeout diagnostics.
 6. Compare a normal production build before and after scaffolding to confirm that verification instrumentation does not enter the deployed WASM.
 
+The cloud compatibility spike produced counterexamples showing that the pinned SDK-25 verifier model can return different values from two consecutive `get_total_supply` calls with no intervening state-changing operation. The production-shaped smoke therefore remains an open compatibility gate. A separate `certora-storage-symbols` build provides an injective short-symbol encoding for the complete finite set of no-payload pool `DataKey` variants; pairwise key separation, stable repeated reads, and nonzero reachability verify in that conditional mode. This permits narrowly scoped pool-metadata analysis conditional on the injective-renaming abstraction, but it does not validate the production enum-vector serialization. Address-bearing `DataKeyToken` keys remain unsupported and must receive their own payload-preserving abstraction and smoke checks before rules involving LP balances or allowances can proceed. The negative control reports `Violated` as expected. The adapter can also observe that a rejected call has no normal return but cannot resume after the abort to inspect rolled-back storage, so failure atomicity remains deferred rather than relying on a vacuous claim.
+
 ### Phase 1: initialized-state foundation
 
 Prove that a successful `init` establishes the state used by later rules:
@@ -106,7 +109,7 @@ Prove that a successful `init` establishes the state used by later rules:
 - Each initial underlying transfer uses the configured balance and leaves the pool sufficiently backed.
 - `TotalShares == INIT_POOL_SUPPLY` and the controller receives exactly that LP balance.
 - Controller, token vector, record map, fee, and LP metadata are stored consistently, and an absent freeze key reads as `false`.
-- Once the failed-call capability rule establishes sound abort observation, a rejected initialization has no persistent storage, share, or underlying-token effect.
+- Rejected-initialization rollback is not claimed until a future adapter or host-level harness exposes post-abort state soundly.
 
 ### Phase 2: proportional liquidity first
 
@@ -185,7 +188,6 @@ For both swap directions, prove:
 - Controller changes preserve all other `EconomicState` fields.
 - Freeze changes preserve all other `EconomicState` fields and only change operation availability within that projection.
 - Simple pool getters return the corresponding stored value without modifying `EconomicState`; expected TTL extensions remain outside the projection.
-- Arithmetic failures, user-limit failures, authorization failures, and failed external token calls are atomic.
 
 ## Targeted validation matrix
 
@@ -194,7 +196,8 @@ For both swap directions, prove:
 | Build isolation | Normal release WASM contains no CVLR/spec instrumentation and has no executable-code change attributable to Sunbeam scaffolding |
 | Reachability | Every passing rule also passes non-vacuity/satisfiability checks for its successful path |
 | Negative controls | Deliberately false smoke rules produce understandable counterexamples |
-| Failure-path soundness | A known-rejected call has a reachable failure witness, preserves `EconomicState`, and is not discarded by the rule semantics |
+| Rejected-call capability | A known-rejected call has a reachable pre-state witness and cannot return normally under the verifier's abort semantics |
+| Failure atomicity (deferred) | A future adapter or host-level harness exposes the failed result and rolled-back `EconomicState` without pruning the failure path |
 | Rule result | Every required rule reports `Verified`; `Violated`, `Timeout`, and `Unknown` remain open work |
 | Assumption audit | Every assumption and summary is listed with its justification and affected rules |
 | Transition closure | `WellFormedPool` is established by `init` and preserved by every in-scope method plus the four minimal SEP-41 transitions, or claims are explicitly operation-local |
@@ -219,6 +222,6 @@ For both swap directions, prove:
 
 ## Completion criteria
 
-The first meaningful milestone is complete when successful proportional join and exit executions are verified end to end against the compiled WASM, including authorization, freeze behavior, exact storage/share/token deltas, backing, user limits, pool-favoring cross-multiplied rounding inequalities, and preservation of a named `WellFormedPool` predicate over the declared transition scope. The second milestone adds the four single-sided liquidity paths with explicit Lean-backed fee-dominance postconditions and labels those results conditional unless direct conformance also verifies the compiled arithmetic body. Swaps, broader persistent invariants, administration, and soundly observable failure atomicity follow without weakening assumptions introduced by the liquidity milestones.
+The first meaningful milestone is complete when successful proportional join and exit executions are verified end to end against the compiled WASM, including authorization, freeze behavior, exact storage/share/token deltas, backing, user limits, pool-favoring cross-multiplied rounding inequalities, and preservation of a named `WellFormedPool` predicate over the declared transition scope. The second milestone adds the four single-sided liquidity paths with explicit Lean-backed fee-dominance postconditions and labels those results conditional unless direct conformance also verifies the compiled arithmetic body. Swaps, broader persistent invariants, and administration follow without weakening assumptions introduced by the liquidity milestones. Failure atomicity remains a separate future milestone that requires sound post-abort observation support.
 
 The final report must distinguish properties proved directly over WASM from properties obtained by composing WASM verification with a Lean-certified summary.

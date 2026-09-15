@@ -1,0 +1,2 @@
+certora-cli==8.19.1
+urllib3==1.26.20

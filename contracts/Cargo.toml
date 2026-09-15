@@ -12,6 +12,15 @@ crate-type = ["cdylib"]
 soroban-fixed-point-math = "=1.5.0"
 soroban-sdk = { workspace = true }
 soroban-token-sdk = { workspace = true }
+cvlr-asserts = { version = "=0.6.1", default-features = false, optional = true }
+cvlr-soroban = { git = "https://github.com/Certora/cvlr-soroban.git", rev = "faf7fb826f395cc0573a0ce674b7e4099cdf6f57", optional = true }
+cvlr-soroban-derive = { git = "https://github.com/Certora/cvlr-soroban.git", rev = "faf7fb826f395cc0573a0ce674b7e4099cdf6f57", optional = true }
+
+[features]
+certora = ["dep:cvlr-asserts", "dep:cvlr-soroban", "dep:cvlr-soroban-derive"]
+# Conditional Sunbeam mode: replace only the no-payload pool DataKey encoding
+# with verifier-friendly short symbols. This is not a production build feature.
+certora-storage-symbols = ["certora"]
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }

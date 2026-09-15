@@ -3,3 +3,10 @@ diagrams
 .soroban
 script_output.log
 test_snapshots/
+
+# Certora Sunbeam local artifacts
+.certora_internal/
+emv-*
+contracts/certora/.venv/
+contracts/certora/.tools/
+contracts/certora/.certora_key
