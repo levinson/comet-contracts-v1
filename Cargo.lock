@@ -295,6 +295,7 @@ name = "contracts"
 version = "1.0.0"
 dependencies = [
  "cvlr-asserts",
+ "cvlr-nondet",
  "cvlr-soroban",
  "cvlr-soroban-derive",
  "sep-41-token",
